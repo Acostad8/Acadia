@@ -84,6 +84,13 @@ export function EvaluationsClient({
   async function addEvaluation() {
     const parsed = parseDraft(draft);
     if (!parsed) return;
+    const newTotal = totalWeight + parsed.weight_percent;
+    if (newTotal > 100.001) {
+      setError(
+        `La suma de porcentajes no puede exceder 100%. Llevas ${totalWeight}% y quedan ${Math.max(0, 100 - totalWeight)}% disponibles.`
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     const { data, error: err } = await supabase
@@ -113,6 +120,15 @@ export function EvaluationsClient({
   async function saveEdit(id: string) {
     const parsed = parseDraft(editDraft);
     if (!parsed) return;
+    const otherWeight = evaluations
+      .filter((e) => e.id !== id)
+      .reduce((s, e) => s + e.weight_percent, 0);
+    if (otherWeight + parsed.weight_percent > 100.001) {
+      setError(
+        `La suma de porcentajes no puede exceder 100%. Las demás evaluaciones suman ${otherWeight}%, así que el máximo aquí es ${Math.max(0, 100 - otherWeight)}%.`
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     const { data, error: err } = await supabase
