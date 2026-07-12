@@ -123,6 +123,24 @@ export type Transaction = {
   created_at: string;
 };
 
+export const REFERENCE_KINDS = ["articulo", "libro", "web", "otro"] as const;
+
+export type ReferenceKind = (typeof REFERENCE_KINDS)[number];
+
+export type BibReference = {
+  id: string;
+  user_id: string;
+  subject_id: string | null;
+  kind: ReferenceKind;
+  title: string;
+  authors: string | null;
+  year: number | null;
+  source: string | null;
+  url: string | null;
+  doi: string | null;
+  created_at: string;
+};
+
 export type ParsedSchedule = {
   semester: { name: string; label: string };
   subjects: ParsedSubject[];
