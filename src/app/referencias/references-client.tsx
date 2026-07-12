@@ -455,6 +455,55 @@ export function ReferencesClient({
               </select>
             </div>
 
+            {/* Vista previa en vivo de la cita */}
+            {draft.title.trim() && (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                    Vista previa · {style}
+                  </p>
+                  <div className="flex gap-1">
+                    {CITATION_STYLES.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setStyle(s)}
+                        className={`rounded-md px-2 py-0.5 text-[11px] transition ${
+                          style === s
+                            ? "bg-white/10 text-white"
+                            : "text-zinc-500 hover:text-white"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-sm leading-relaxed text-zinc-200">
+                  {formatCitation(
+                    {
+                      id: "preview",
+                      user_id: "",
+                      subject_id: null,
+                      kind: draft.kind,
+                      title: draft.title.trim(),
+                      authors: draft.authors.trim() || null,
+                      year: /^\d{4}$/.test(draft.year.trim())
+                        ? Number(draft.year)
+                        : null,
+                      source: draft.source.trim() || null,
+                      url: draft.url.trim() || null,
+                      doi:
+                        draft.doi
+                          .trim()
+                          .replace(/^https?:\/\/doi\.org\//i, "") || null,
+                      created_at: "",
+                    },
+                    style
+                  )}
+                </p>
+              </div>
+            )}
+
             {error && (
               <p className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
                 {error}

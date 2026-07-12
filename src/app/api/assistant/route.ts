@@ -145,6 +145,16 @@ export async function POST(request: Request) {
     return Response.json({ error: "Mensajes inválidos" }, { status: 400 });
   }
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return Response.json(
+      {
+        error:
+          "Falta ANTHROPIC_API_KEY en .env.local. Agrega tu clave de la API de Anthropic para activar el asistente.",
+      },
+      { status: 503 }
+    );
+  }
+
   const context = await buildContext();
   if (!context) {
     return Response.json(
