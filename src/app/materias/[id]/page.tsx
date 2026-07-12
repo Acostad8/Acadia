@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Evaluation, ScheduleBlock, Subject } from "@/lib/types";
+import { AppNav } from "@/components/app-nav";
 import { EditSubject } from "./edit-subject";
 import { EvaluationsClient } from "./evaluations-client";
 
@@ -50,7 +50,9 @@ export default async function SubjectDetailPage({
   const s = subject as Subject;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10">
+    <>
+      <AppNav />
+      <main className="mx-auto w-full max-w-5xl px-4 py-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-indigo-400">
@@ -69,15 +71,7 @@ export default async function SubjectDetailPage({
             <p className="mt-1.5 text-sm text-zinc-400">{s.professor}</p>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <EditSubject subject={s} />
-          <Link
-            href="/dashboard"
-            className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
-          >
-            ← Dashboard
-          </Link>
-        </div>
+        <EditSubject subject={s} />
       </header>
 
       {(blocks ?? []).length > 0 && (
@@ -100,6 +94,7 @@ export default async function SubjectDetailPage({
         userId={user.id}
         initialEvaluations={(evaluations ?? []) as Evaluation[]}
       />
-    </main>
+      </main>
+    </>
   );
 }

@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { CalendarEvent, Subject } from "@/lib/types";
+import { AppNav } from "@/components/app-nav";
 import { CalendarClient } from "./calendar-client";
 
 export default async function CalendarioPage() {
@@ -32,33 +32,25 @@ export default async function CalendarioPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-indigo-400">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-[11px] font-bold text-white">
-              A
-            </span>
+    <>
+      <AppNav />
+      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+        <header>
+          <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             {semester.label ?? semester.name}
-          </div>
+          </p>
           <h1 className="text-3xl font-bold tracking-tight text-white">
             Calendario
           </h1>
-        </div>
-        <Link
-          href="/dashboard"
-          className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
-        >
-          ← Dashboard
-        </Link>
-      </header>
+        </header>
 
-      <CalendarClient
-        semesterId={semester.id}
-        userId={user.id}
-        subjects={(subjects ?? []) as Subject[]}
-        initialEvents={(events ?? []) as CalendarEvent[]}
-      />
-    </main>
+        <CalendarClient
+          semesterId={semester.id}
+          userId={user.id}
+          subjects={(subjects ?? []) as Subject[]}
+          initialEvents={(events ?? []) as CalendarEvent[]}
+        />
+      </main>
+    </>
   );
 }

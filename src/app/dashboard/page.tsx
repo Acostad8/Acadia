@@ -9,8 +9,8 @@ import type {
   ScheduleBlock,
   Subject,
 } from "@/lib/types";
+import { AppNav } from "@/components/app-nav";
 import { DriveBanner } from "./drive-banner";
-import { SignOutButton } from "./sign-out-button";
 import { WeeklySchedule } from "./weekly-schedule";
 
 export default async function DashboardPage() {
@@ -47,7 +47,6 @@ export default async function DashboardPage() {
     .select()
     .eq("semester_id", semester.id)
     .eq("completed", false)
-    .gte("due_at", new Date(Date.now() - 86400000).toISOString())
     .order("due_at")
     .limit(5);
 
@@ -73,39 +72,17 @@ export default async function DashboardPage() {
   }, 0);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <>
+      <AppNav />
+      <main className="mx-auto w-full max-w-6xl px-4 py-10">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-indigo-400">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-[11px] font-bold text-white">
-              A
-            </span>
+          <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             Semestre actual
-          </div>
+          </p>
           <h1 className="text-3xl font-bold tracking-tight text-white">
             {semester.label ?? semester.name}
           </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/biblioteca"
-            className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
-          >
-            Biblioteca
-          </Link>
-          <Link
-            href="/calendario"
-            className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
-          >
-            Calendario
-          </Link>
-          <Link
-            href="/onboarding"
-            className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
-          >
-            + Nuevo semestre
-          </Link>
-          <SignOutButton />
         </div>
       </header>
 
@@ -248,6 +225,7 @@ export default async function DashboardPage() {
           })}
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }
