@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { relativeDue } from "@/lib/dates";
 import { formatGrade, summarizeGrades } from "@/lib/grades";
-import type { Evaluation, ScheduleBlock, Subject } from "@/lib/types";
+import type {
+  CalendarEvent,
+  Evaluation,
+  ScheduleBlock,
+  Subject,
+} from "@/lib/types";
 import { DriveBanner } from "./drive-banner";
 import { SignOutButton } from "./sign-out-button";
 import { WeeklySchedule } from "./weekly-schedule";
@@ -35,6 +41,15 @@ export default async function DashboardPage() {
         supabase.from("evaluations").select().in("subject_id", subjectIds),
       ])
     : [{ data: [] as ScheduleBlock[] }, { data: [] as Evaluation[] }];
+
+  const { data: upcomingEvents } = await supabase
+    .from("events")
+    .select()
+    .eq("semester_id", semester.id)
+    .eq("completed", false)
+    .gte("due_at", new Date(Date.now() - 86400000).toISOString())
+    .order("due_at")
+    .limit(5);
 
   const summaryBySubject = new Map(
     subjectIds.map((sid) => [
@@ -79,6 +94,12 @@ export default async function DashboardPage() {
             Biblioteca
           </Link>
           <Link
+            href="/calendario"
+            className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+          >
+            Calendario
+          </Link>
+          <Link
             href="/onboarding"
             className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
           >
@@ -111,6 +132,56 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {(upcomingEvents ?? []).length > 0 && (
+        <section className="mt-10">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+              Próximas entregas
+            </h2>
+            <Link
+              href="/calendario"
+              className="text-xs font-medium text-indigo-400 transition hover:text-indigo-300"
+            >
+              Ver calendario →
+            </Link>
+          </div>
+          <ul className="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+            {((upcomingEvents ?? []) as CalendarEvent[]).map((ev) => {
+              const subject = ev.subject_id
+                ? (subjects ?? []).find((s) => s.id === ev.subject_id)
+                : undefined;
+              const rel = relativeDue(ev.due_at);
+              return (
+                <li
+                  key={ev.id}
+                  className="flex items-center gap-4 px-5 py-3 transition hover:bg-white/[0.03]"
+                >
+                  <span
+                    className="h-8 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: subject?.color ?? "#3f3f46" }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-white">
+                      {ev.title}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {subject?.name ?? "General"}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 text-xs font-medium ${
+                      rel.urgent ? "text-amber-400" : "text-zinc-500"
+                    }`}
+                  >
+                    {rel.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="mt-10">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">

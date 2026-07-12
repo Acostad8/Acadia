@@ -63,6 +63,31 @@ export type Evaluation = {
   created_at: string;
 };
 
+export const EVENT_TYPES = [
+  "tarea",
+  "parcial",
+  "quiz",
+  "taller",
+  "laboratorio",
+  "exposicion",
+  "otro",
+] as const;
+
+export type EventType = (typeof EVENT_TYPES)[number];
+
+export type CalendarEvent = {
+  id: string;
+  user_id: string;
+  subject_id: string | null;
+  semester_id: string;
+  title: string;
+  type: EventType;
+  due_at: string;
+  completed: boolean;
+  notes: string | null;
+  created_at: string;
+};
+
 export type ParsedSchedule = {
   semester: { name: string; label: string };
   subjects: ParsedSubject[];
