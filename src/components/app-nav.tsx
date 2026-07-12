@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/referencias", label: "Referencias" },
   { href: "/portafolio", label: "Portafolio" },
   { href: "/analitica", label: "Analítica" },
+  { href: "/asistente", label: "Asistente" },
   { href: "/finanzas", label: "Finanzas" },
   { href: "/semestres", label: "Semestres" },
 ];
