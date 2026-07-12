@@ -4,6 +4,7 @@ import type { Evaluation, ScheduleBlock, Subject } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { EditSubject } from "./edit-subject";
 import { EvaluationsClient } from "./evaluations-client";
+import { SubjectNotes } from "./subject-notes";
 
 const DAY_NAMES = [
   "Domingo",
@@ -94,6 +95,7 @@ export default async function SubjectDetailPage({
         userId={user.id}
         initialEvaluations={(evaluations ?? []) as Evaluation[]}
       />
+      <SubjectNotes subjectId={s.id} initialNotes={s.notes} />
       </main>
     </>
   );
