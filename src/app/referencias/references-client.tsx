@@ -21,6 +21,7 @@ const KIND_LABELS: Record<ReferenceKind, string> = {
 
 type Draft = {
   id: string | null;
+  mode: "form" | "pegada";
   kind: ReferenceKind;
   title: string;
   authors: string;
@@ -28,6 +29,7 @@ type Draft = {
   source: string;
   url: string;
   doi: string;
+  rawCitation: string;
   subjectId: string;
   groupId: string;
 };
@@ -35,6 +37,7 @@ type Draft = {
 function emptyDraft(groupId = ""): Draft {
   return {
     id: null,
+    mode: "form",
     kind: "articulo",
     title: "",
     authors: "",
@@ -42,6 +45,7 @@ function emptyDraft(groupId = ""): Draft {
     source: "",
     url: "",
     doi: "",
+    rawCitation: "",
     subjectId: "",
     groupId,
   };
@@ -129,13 +133,21 @@ export function ReferencesClient({
 
   async function saveDraft() {
     if (!draft) return;
-    const title = draft.title.trim();
+    const isPegada = draft.mode === "pegada";
+    const rawCitation = draft.rawCitation.trim().replace(/\s+/g, " ");
+    if (isPegada && !rawCitation) {
+      setError("Pega la cita tal como la copiaste.");
+      return;
+    }
+    const title = isPegada
+      ? rawCitation.slice(0, 200)
+      : draft.title.trim();
     if (!title) {
       setError("El título es obligatorio.");
       return;
     }
     let year: number | null = null;
-    if (draft.year.trim() !== "") {
+    if (!isPegada && draft.year.trim() !== "") {
       year = Number(draft.year);
       if (!Number.isInteger(year) || year < 1000 || year > 2100) {
         setError("El año no es válido.");
@@ -147,11 +159,12 @@ export function ReferencesClient({
     const payload = {
       kind: draft.kind,
       title,
-      authors: draft.authors.trim() || null,
+      authors: isPegada ? null : draft.authors.trim() || null,
       year,
-      source: draft.source.trim() || null,
+      source: isPegada ? null : draft.source.trim() || null,
       url: draft.url.trim() || null,
       doi: draft.doi.trim().replace(/^https?:\/\/doi\.org\//i, "") || null,
+      raw_citation: isPegada ? rawCitation : null,
       subject_id: draft.subjectId || null,
       group_id: draft.groupId || null,
     };
@@ -212,6 +225,7 @@ export function ReferencesClient({
     setLookup("");
     setDraft({
       id: ref.id,
+      mode: ref.raw_citation ? "pegada" : "form",
       kind: ref.kind,
       title: ref.title,
       authors: ref.authors ?? "",
@@ -219,6 +233,7 @@ export function ReferencesClient({
       source: ref.source ?? "",
       url: ref.url ?? "",
       doi: ref.doi ?? "",
+      rawCitation: ref.raw_citation ?? "",
       subjectId: ref.subject_id ?? "",
       groupId: ref.group_id ?? "",
     });
@@ -559,6 +574,20 @@ export function ReferencesClient({
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
+                  {(ref.url || ref.doi) && (
+                    <a
+                      href={
+                        ref.doi
+                          ? `https://doi.org/${ref.doi}`
+                          : (ref.url as string)
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-indigo-400/50 hover:text-white"
+                    >
+                      Abrir
+                    </a>
+                  )}
                   <button
                     onClick={() => copyCitation(ref)}
                     className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
@@ -592,6 +621,107 @@ export function ReferencesClient({
               {draft.id ? "Editar referencia" : "Nueva referencia"}
             </h3>
 
+            {/* Modo: formulario o cita pegada */}
+            <div className="mt-3 flex overflow-hidden rounded-xl border border-white/10">
+              {(
+                [
+                  ["form", "Formulario"],
+                  ["pegada", "Pegar cita (Google Académico)"],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  onClick={() => setDraft({ ...draft, mode })}
+                  className={`flex-1 px-3 py-2 text-sm font-medium transition ${
+                    draft.mode === mode
+                      ? "bg-white/10 text-white"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {draft.mode === "pegada" && (
+              <div className="mt-4 space-y-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs text-zinc-500">
+                    Cita tal como la copiaste (en Google Académico: Citar →
+                    APA → copiar)
+                  </span>
+                  <textarea
+                    value={draft.rawCitation}
+                    onChange={(e) =>
+                      setDraft({ ...draft, rawCitation: e.target.value })
+                    }
+                    placeholder="Pérez, J. (2023). Título del artículo. Revista de Ejemplo, 12(3), 45-67."
+                    rows={4}
+                    autoFocus
+                    className={`${inputClasses} w-full resize-none`}
+                  />
+                </label>
+                <input
+                  value={draft.url}
+                  onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+                  placeholder="Enlace para acceder a la referencia (URL)"
+                  className={`${inputClasses} w-full`}
+                />
+                <div className="grid grid-cols-3 gap-3">
+                  <select
+                    value={draft.kind}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        kind: e.target.value as ReferenceKind,
+                      })
+                    }
+                    className={`${inputClasses} w-full`}
+                  >
+                    {REFERENCE_KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {KIND_LABELS[k]}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={draft.subjectId}
+                    onChange={(e) =>
+                      setDraft({ ...draft, subjectId: e.target.value })
+                    }
+                    className={`${inputClasses} w-full`}
+                  >
+                    <option value="">Sin materia</option>
+                    {subjects.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={draft.groupId}
+                    onChange={(e) =>
+                      setDraft({ ...draft, groupId: e.target.value })
+                    }
+                    className={`${inputClasses} w-full`}
+                  >
+                    <option value="">Sin grupo</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-xs text-zinc-600">
+                  La cita se guarda y se muestra exactamente como la pegaste;
+                  el enlace se añade al final para poder acceder a la fuente.
+                </p>
+              </div>
+            )}
+
+            {draft.mode === "form" && (
+            <>
             <div className="mt-4 rounded-2xl border border-indigo-400/25 bg-indigo-500/[0.06] p-3">
               <p className="mb-2 text-xs font-medium text-indigo-300">
                 Pega un enlace o DOI y Acadia completa la referencia
@@ -711,9 +841,13 @@ export function ReferencesClient({
                 </select>
               </div>
             </div>
+            </>
+            )}
 
             {/* Vista previa en vivo de la cita */}
-            {draft.title.trim() && (
+            {(draft.mode === "pegada"
+              ? draft.rawCitation.trim()
+              : draft.title.trim()) && (
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
@@ -742,8 +876,12 @@ export function ReferencesClient({
                       user_id: "",
                       subject_id: null,
                       group_id: null,
+                      raw_citation:
+                        draft.mode === "pegada"
+                          ? draft.rawCitation.trim()
+                          : null,
                       kind: draft.kind,
-                      title: draft.title.trim(),
+                      title: draft.title.trim() || "—",
                       authors: draft.authors.trim() || null,
                       year: /^\d{4}$/.test(draft.year.trim())
                         ? Number(draft.year)

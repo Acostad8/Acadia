@@ -42,6 +42,15 @@ export function formatCitation(
   ref: BibReference,
   style: CitationStyle
 ): string {
+  // Cita pegada tal cual (p. ej. de Google Académico): se respeta verbatim
+  // y se añade el enlace si la cita no lo incluye ya.
+  if (ref.raw_citation) {
+    const raw = ref.raw_citation.trim().replace(/\s+/g, " ");
+    const link = ref.doi ? `https://doi.org/${ref.doi}` : (ref.url ?? "");
+    if (link && !raw.includes(link)) return `${raw} ${link}`;
+    return raw;
+  }
+
   const authors = splitAuthors(ref.authors);
   const link = ref.doi ? `https://doi.org/${ref.doi}` : (ref.url ?? "");
 

@@ -139,6 +139,7 @@ export type BibReference = {
   source: string | null;
   url: string | null;
   doi: string | null;
+  raw_citation: string | null;
   created_at: string;
 };
 
