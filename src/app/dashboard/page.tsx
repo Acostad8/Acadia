@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { ScheduleBlock, Subject } from "@/lib/types";
+import { formatGrade, summarizeGrades } from "@/lib/grades";
+import type { Evaluation, ScheduleBlock, Subject } from "@/lib/types";
 import { DriveBanner } from "./drive-banner";
 import { SignOutButton } from "./sign-out-button";
 import { WeeklySchedule } from "./weekly-schedule";
@@ -28,12 +29,23 @@ export default async function DashboardPage() {
     .order("name");
 
   const subjectIds = (subjects ?? []).map((s) => s.id);
-  const { data: blocks } = subjectIds.length
-    ? await supabase
-        .from("schedule_blocks")
-        .select()
-        .in("subject_id", subjectIds)
-    : { data: [] as ScheduleBlock[] };
+  const [{ data: blocks }, { data: evaluations }] = subjectIds.length
+    ? await Promise.all([
+        supabase.from("schedule_blocks").select().in("subject_id", subjectIds),
+        supabase.from("evaluations").select().in("subject_id", subjectIds),
+      ])
+    : [{ data: [] as ScheduleBlock[] }, { data: [] as Evaluation[] }];
+
+  const summaryBySubject = new Map(
+    subjectIds.map((sid) => [
+      sid,
+      summarizeGrades(
+        ((evaluations ?? []) as Evaluation[]).filter(
+          (e) => e.subject_id === sid
+        )
+      ),
+    ])
+  );
 
   const totalCredits = (subjects ?? []).reduce(
     (sum, s) => sum + (s.credits ?? 0),
@@ -115,33 +127,54 @@ export default async function DashboardPage() {
           Materias
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(subjects ?? []).map((s) => (
-            <div
-              key={s.id}
-              className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm transition hover:border-white/20"
-            >
-              <span
-                className="absolute inset-x-0 top-0 h-1"
-                style={{ backgroundColor: s.color ?? "#6366f1" }}
-              />
-              <h3 className="font-semibold leading-snug text-white">
-                {s.name}
-              </h3>
-              <p className="mt-1.5 text-xs text-zinc-500">
-                {s.code}
-                {s.group_name ? ` · Grupo ${s.group_name}` : ""}
-                {s.credits ? ` · ${s.credits} créditos` : ""}
-              </p>
-              {s.professor && (
-                <p className="mt-3 flex items-center gap-2 text-sm text-zinc-400">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[10px] font-semibold text-zinc-300">
-                    {s.professor.charAt(0).toUpperCase()}
-                  </span>
-                  {s.professor}
+          {(subjects ?? []).map((s) => {
+            const summary = summaryBySubject.get(s.id);
+            const hasGrades = (summary?.evaluatedPercent ?? 0) > 0;
+            return (
+              <Link
+                key={s.id}
+                href={`/materias/${s.id}`}
+                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm transition hover:border-white/25 hover:bg-white/[0.05]"
+              >
+                <span
+                  className="absolute inset-x-0 top-0 h-1"
+                  style={{ backgroundColor: s.color ?? "#6366f1" }}
+                />
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-semibold leading-snug text-white">
+                    {s.name}
+                  </h3>
+                  {hasGrades && summary && (
+                    <span
+                      className={`shrink-0 rounded-lg px-2 py-1 text-sm font-bold tabular-nums ${
+                        summary.status === "perdida"
+                          ? "bg-red-500/10 text-red-400"
+                          : summary.status === "aprobada"
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "bg-white/10 text-white"
+                      }`}
+                      title={`Nota acumulada · ${summary.evaluatedPercent}% evaluado`}
+                    >
+                      {formatGrade(summary.accumulated)}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-xs text-zinc-500">
+                  {s.code}
+                  {s.group_name ? ` · Grupo ${s.group_name}` : ""}
+                  {s.credits ? ` · ${s.credits} créditos` : ""}
                 </p>
-              )}
-            </div>
-          ))}
+                {s.professor && (
+                  <p className="mt-3 flex items-center gap-2 text-sm text-zinc-400">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[10px] font-semibold text-zinc-300">
+                      {s.professor.charAt(0).toUpperCase()}
+                    </span>
+                    {s.professor}
+                  </p>
+                )}
+              </Link>
+            );
+          })}
         </div>
       </section>
     </main>

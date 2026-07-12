@@ -53,6 +53,16 @@ export type Document = {
   uploaded_at: string;
 };
 
+export type Evaluation = {
+  id: string;
+  subject_id: string;
+  user_id: string;
+  name: string;
+  weight_percent: number;
+  grade: number | null;
+  created_at: string;
+};
+
 export type ParsedSchedule = {
   semester: { name: string; label: string };
   subjects: ParsedSubject[];
