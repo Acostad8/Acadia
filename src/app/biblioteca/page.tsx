@@ -33,14 +33,20 @@ export default async function BibliotecaPage() {
   return (
     <>
       <AppNav />
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
-        <header>
-          <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
-            {semester.label ?? semester.name}
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight text-white">
-            Biblioteca
-          </h1>
+      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
+              {semester.label ?? semester.name}
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Biblioteca
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-zinc-400">
+              Documentos organizados por materia y tipo, sincronizados con
+              Google Drive.
+            </p>
+          </div>
         </header>
 
         <LibraryClient
