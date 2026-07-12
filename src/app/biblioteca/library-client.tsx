@@ -28,6 +28,11 @@ export function LibraryClient({
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [moving, setMoving] = useState<{
+    doc: Document;
+    subjectId: string;
+    docType: string;
+  } | null>(null);
 
   const subjectById = useMemo(
     () => new Map(subjects.map((s) => [s.id, s])),
@@ -89,6 +94,33 @@ export function LibraryClient({
       if (!res.ok) throw new Error(json.error ?? "Error al subir");
       setDocuments((prev) => [json as Document, ...prev]);
       setPending(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function moveDocument() {
+    if (!moving) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/documents/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          document_id: moving.doc.id,
+          subject_id: moving.subjectId,
+          doc_type: moving.docType,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Error al mover");
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === moving.doc.id ? (json as Document) : d))
+      );
+      setMoving(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -310,6 +342,19 @@ export function LibraryClient({
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
+                  <button
+                    onClick={() =>
+                      setMoving({
+                        doc: d,
+                        subjectId: d.subject_id ?? "",
+                        docType: d.doc_type ?? SUBJECT_SUBFOLDERS[0],
+                      })
+                    }
+                    title="Mover a otra materia o carpeta"
+                    className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-indigo-400/50 hover:text-white"
+                  >
+                    Mover
+                  </button>
                   {d.drive_web_link && (
                     <a
                       href={d.drive_web_link}
@@ -336,6 +381,87 @@ export function LibraryClient({
             );
           })}
         </ul>
+      )}
+
+      {/* Modal mover documento */}
+      {moving && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => !busy && setMoving(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">
+              Mover documento
+            </h3>
+            <p className="mt-1 truncate text-sm text-zinc-500">
+              {moving.doc.name}
+            </p>
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-zinc-500">
+                  Materia destino
+                </span>
+                <select
+                  value={moving.subjectId}
+                  onChange={(e) =>
+                    setMoving({ ...moving, subjectId: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-indigo-400/60"
+                >
+                  <option value="" disabled>
+                    Selecciona materia...
+                  </option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-zinc-500">
+                  Carpeta / tipo
+                </span>
+                <select
+                  value={moving.docType}
+                  onChange={(e) =>
+                    setMoving({ ...moving, docType: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-indigo-400/60"
+                >
+                  {SUBJECT_SUBFOLDERS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="mt-3 text-xs text-zinc-600">
+              El archivo también se moverá a la carpeta correspondiente en tu
+              Google Drive.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setMoving(null)}
+                disabled={busy}
+                className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={moveDocument}
+                disabled={busy || !moving.subjectId}
+                className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 disabled:opacity-50"
+              >
+                {busy ? "Moviendo..." : "Mover"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

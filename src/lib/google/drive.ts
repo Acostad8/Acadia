@@ -48,6 +48,20 @@ export async function ensureFolder(
   return created.data.id!;
 }
 
+export async function moveFile(
+  drive: drive_v3.Drive,
+  fileId: string,
+  fromFolderId: string | null,
+  toFolderId: string
+): Promise<void> {
+  await drive.files.update({
+    fileId,
+    addParents: toFolderId,
+    ...(fromFolderId && { removeParents: fromFolderId }),
+    fields: "id",
+  });
+}
+
 export async function uploadFile(
   drive: drive_v3.Drive,
   folderId: string,
