@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { LogoMark } from "@/components/logo";
 
 const FEATURES = [
   {
@@ -109,8 +110,8 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-lg">
         <div className="mb-10 text-center animate-fade-in-up">
-          <div className="relative mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-2xl shadow-indigo-500/40">
-            <span className="text-3xl font-bold text-white">A</span>
+          <div className="relative mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl shadow-2xl shadow-indigo-500/40">
+            <LogoMark size={64} />
             <span className="absolute inset-0 rounded-2xl animate-pulse-ring" />
           </div>
           <h1 className="bg-gradient-to-r from-white via-white to-zinc-500 bg-clip-text text-5xl font-bold tracking-tight text-transparent">

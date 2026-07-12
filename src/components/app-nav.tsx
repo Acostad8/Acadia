@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { LogoMark } from "@/components/logo";
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -10,6 +11,7 @@ const LINKS = [
   { href: "/calendario", label: "Calendario" },
   { href: "/estudio", label: "Estudio" },
   { href: "/referencias", label: "Referencias" },
+  { href: "/enlaces", label: "Enlaces" },
   { href: "/portafolio", label: "Portafolio" },
   { href: "/analitica", label: "Analítica" },
   { href: "/asistente", label: "Asistente" },
@@ -32,12 +34,12 @@ export function AppNav() {
       <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3">
         <Link
           href="/dashboard"
-          className="mr-4 flex items-center gap-2 text-sm font-bold text-white"
+          className="mr-4 flex items-center gap-2 rounded-lg text-sm font-bold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white">
-            A
+          <LogoMark size={28} />
+          <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
+            Acadia
           </span>
-          Acadia
         </Link>
         <div className="flex flex-1 items-center gap-1 overflow-x-auto">
           {LINKS.map((link) => {
