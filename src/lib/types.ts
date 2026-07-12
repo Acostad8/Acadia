@@ -6,6 +6,7 @@ export type Semester = {
   start_date: string | null;
   end_date: string | null;
   is_current: boolean;
+  archived: boolean;
   drive_folder_id: string | null;
   created_at: string;
 };

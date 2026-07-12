@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Evaluation, ScheduleBlock, Subject } from "@/lib/types";
+import { EditSubject } from "./edit-subject";
 import { EvaluationsClient } from "./evaluations-client";
 
 const DAY_NAMES = [
@@ -68,12 +69,15 @@ export default async function SubjectDetailPage({
             <p className="mt-1.5 text-sm text-zinc-400">{s.professor}</p>
           )}
         </div>
-        <Link
-          href="/dashboard"
-          className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
-        >
-          ← Dashboard
-        </Link>
+        <div className="flex items-center gap-2">
+          <EditSubject subject={s} />
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+          >
+            ← Dashboard
+          </Link>
+        </div>
       </header>
 
       {(blocks ?? []).length > 0 && (
