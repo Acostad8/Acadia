@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { LogoMark } from "@/components/logo";
+import { CommandPalette } from "@/components/command-palette";
 
 type LinkDef = {
   href: string;
@@ -264,7 +265,41 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
+        <div className="px-2 pt-3">
+          <button
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("acadia:open-palette"))
+            }
+            title="Buscar en todo (Ctrl+K)"
+            className={`group flex w-full items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-sm font-medium text-zinc-400 transition hover:border-white/25 hover:text-white ${
+              collapsed ? "justify-center" : ""
+            }`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              className="h-[18px] w-[18px] shrink-0"
+            >
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.6" />
+              <path
+                d="m20 20-3.5-3.5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+            {!collapsed && (
+              <>
+                <span className="flex-1 text-left">Buscar</span>
+                <kbd className="rounded border border-white/10 bg-white/5 px-1 py-0.5 font-mono text-[10px] text-zinc-500">
+                  Ctrl K
+                </kbd>
+              </>
+            )}
+          </button>
+        </div>
+
+        <nav className="mt-2 flex-1 space-y-0.5 overflow-y-auto px-2 pb-3">
           {LINKS.map((link) => {
             const active =
               pathname === link.href ||
@@ -322,6 +357,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className={`transition-[padding] ${mainOffset}`}>{children}</div>
+      <CommandPalette />
     </div>
   );
 }
