@@ -89,6 +89,40 @@ export type CalendarEvent = {
   created_at: string;
 };
 
+export const INCOME_CATEGORIES = [
+  "beca",
+  "trabajo",
+  "auxilio",
+  "padres",
+  "otro",
+] as const;
+
+export const EXPENSE_CATEGORIES = [
+  "matricula",
+  "transporte",
+  "alimentacion",
+  "libros",
+  "fotocopias",
+  "papeleria",
+  "materiales",
+  "software",
+  "internet",
+  "impresiones",
+  "otro",
+] as const;
+
+export type Transaction = {
+  id: string;
+  user_id: string;
+  semester_id: string | null;
+  type: "ingreso" | "gasto";
+  category: string;
+  amount: number;
+  description: string | null;
+  occurred_at: string;
+  created_at: string;
+};
+
 export type ParsedSchedule = {
   semester: { name: string; label: string };
   subjects: ParsedSubject[];
