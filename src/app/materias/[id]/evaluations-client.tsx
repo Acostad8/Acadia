@@ -47,6 +47,7 @@ export function EvaluationsClient({
   const [editDraft, setEditDraft] = useState<Draft>(EMPTY_DRAFT);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [simGrade, setSimGrade] = useState(3.5);
 
   const summary = useMemo(() => summarizeGrades(evaluations), [evaluations]);
   const totalWeight = useMemo(
@@ -385,6 +386,49 @@ export function EvaluationsClient({
             </p>
           )}
         </div>
+
+        {summary.remainingPercent > 0 && (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
+            <p className="mb-1 text-xs font-medium text-zinc-400">
+              Simulador de escenarios
+            </p>
+            <p className="text-xs text-zinc-600">
+              Si en el {summary.remainingPercent}% restante sacas...
+            </p>
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                type="range"
+                min={0}
+                max={5}
+                step={0.1}
+                value={simGrade}
+                onChange={(e) => setSimGrade(Number(e.target.value))}
+                className="flex-1 accent-indigo-500"
+                aria-label="Nota hipotética en lo restante"
+              />
+              <span className="w-10 text-right text-lg font-bold tabular-nums text-white">
+                {simGrade.toFixed(1)}
+              </span>
+            </div>
+            {(() => {
+              const projected =
+                summary.accumulated +
+                simGrade * (summary.remainingPercent / 100);
+              return (
+                <p className="mt-3 flex items-baseline justify-between text-sm">
+                  <span className="text-zinc-400">Nota final proyectada</span>
+                  <span
+                    className={`text-xl font-bold tabular-nums ${
+                      projected >= 3 ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {formatGrade(projected)}
+                  </span>
+                </p>
+              );
+            })()}
+          </div>
+        )}
       </aside>
     </div>
   );
