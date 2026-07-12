@@ -385,7 +385,7 @@ export function CalendarClient({
                   />
                   <button
                     onClick={() => openEdit(ev)}
-                    className="min-w-0 flex-1 text-left"
+                    className="min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left transition hover:bg-white/[0.04]"
                   >
                     <p className="truncate text-sm font-medium text-white">
                       {ev.title}
