@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SUBJECT_SUBFOLDERS } from "@/lib/doc-types";
 import { suggestDocType, suggestSubject } from "@/lib/classify";
 import type { Document, Subject } from "@/lib/types";
@@ -29,6 +29,28 @@ function extOf(name: string): string {
 }
 
 type FileKind = "pdf" | "doc" | "sheet" | "slide" | "image" | "video" | "audio" | "archive" | "code" | "other";
+
+function renderSnippet(s: string): { __html: string } {
+  const escaped = s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[c]!
+  );
+  return {
+    __html: escaped
+      .replace(
+        /&lt;&lt;/g,
+        '<mark class="rounded bg-indigo-500/30 px-0.5 text-white">'
+      )
+      .replace(/&gt;&gt;/g, "</mark>"),
+  };
+}
 
 function fileKind(name: string, mime: string | null | undefined): FileKind {
   const ext = extOf(name);
@@ -132,11 +154,49 @@ export function LibraryClient({
     subjectId: string;
     docType: string;
   } | null>(null);
+  const [deepResults, setDeepResults] = useState<
+    Map<string, { snippet: string; rank: number }>
+  >(new Map());
+  const [deepLoading, setDeepLoading] = useState(false);
 
   const subjectById = useMemo(
     () => new Map(subjects.map((s) => [s.id, s])),
     [subjects]
   );
+
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 3) {
+      setDeepResults(new Map());
+      setDeepLoading(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    setDeepLoading(true);
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/documents/search?q=${encodeURIComponent(q)}`,
+          { signal: ctrl.signal }
+        );
+        if (!res.ok) return;
+        const json = await res.json();
+        const map = new Map<string, { snippet: string; rank: number }>();
+        for (const r of json.results ?? []) {
+          if (r?.id) map.set(r.id, { snippet: r.snippet, rank: r.rank });
+        }
+        setDeepResults(map);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") console.warn(err);
+      } finally {
+        setDeepLoading(false);
+      }
+    }, 350);
+    return () => {
+      clearTimeout(handle);
+      ctrl.abort();
+    };
+  }, [search]);
 
   async function pickFile(file: File) {
     setError(null);
@@ -232,6 +292,7 @@ export function LibraryClient({
       if (filter && d.subject_id !== filter) return false;
       if (typeFilter && d.doc_type !== typeFilter) return false;
       if (!query) return true;
+      if (deepResults.has(d.id)) return true;
       return (
         d.name.toLowerCase().includes(query) ||
         (d.doc_type ?? "").toLowerCase().includes(query) ||
@@ -242,6 +303,12 @@ export function LibraryClient({
     if (sort === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
     else if (sort === "size")
       sorted.sort((a, b) => (b.size_bytes ?? 0) - (a.size_bytes ?? 0));
+    else if (query && deepResults.size > 0)
+      sorted.sort(
+        (a, b) =>
+          (deepResults.get(b.id)?.rank ?? -1) -
+          (deepResults.get(a.id)?.rank ?? -1)
+      );
     else
       sorted.sort(
         (a, b) =>
@@ -249,7 +316,7 @@ export function LibraryClient({
           new Date(a.uploaded_at).getTime()
       );
     return sorted;
-  }, [documents, filter, typeFilter, query, sort]);
+  }, [documents, filter, typeFilter, query, sort, deepResults]);
 
   const totalSize = documents.reduce((s, d) => s + (d.size_bytes ?? 0), 0);
   const orphanCount = documents.filter((d) => !d.subject_id).length;
@@ -600,9 +667,39 @@ export function LibraryClient({
       )}
 
       {documents.length > 0 && (
-        <p className="text-[11px] text-zinc-500">
-          Mostrando <span className="text-zinc-300">{filtered.length}</span> de{" "}
-          {documents.length} documentos
+        <p className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+          <span>
+            Mostrando <span className="text-zinc-300">{filtered.length}</span>{" "}
+            de {documents.length} documentos
+          </span>
+          {query.length >= 3 && (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                deepLoading
+                  ? "bg-white/5 text-zinc-400"
+                  : deepResults.size > 0
+                    ? "bg-indigo-500/15 text-indigo-300"
+                    : "bg-white/5 text-zinc-500"
+              }`}
+            >
+              {deepLoading ? (
+                <>
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                  buscando en contenido...
+                </>
+              ) : deepResults.size > 0 ? (
+                <>
+                  <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3">
+                    <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  {deepResults.size} con coincidencia en contenido
+                </>
+              ) : (
+                "sin coincidencia dentro de los PDF"
+              )}
+            </span>
+          )}
         </p>
       )}
 
@@ -667,6 +764,14 @@ export function LibraryClient({
                     </p>
                   </div>
                 </div>
+                {deepResults.has(d.id) && (
+                  <p
+                    className="mt-2 line-clamp-2 text-[11px] italic text-zinc-400"
+                    dangerouslySetInnerHTML={renderSnippet(
+                      deepResults.get(d.id)!.snippet
+                    )}
+                  />
+                )}
                 <div className="mt-3 flex items-center gap-2 text-[10px] font-medium">
                   <span className={`rounded px-1.5 py-0.5 ${style.bg} ${style.text}`}>
                     {style.label}

@@ -7,6 +7,9 @@ import {
   SUBJECT_SUBFOLDERS,
   type SubjectSubfolder,
 } from "@/lib/google/drive";
+import { extractPdfText } from "@/lib/pdf-text";
+
+const MAX_INDEX_CHARS = 20_000;
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -80,6 +83,17 @@ export async function POST(request: NextRequest) {
       buffer,
     });
 
+    let contentText: string | null = null;
+    if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+      try {
+        const raw = await extractPdfText(new Uint8Array(buffer), 10);
+        const cleaned = raw.replace(/\s+/g, " ").trim();
+        if (cleaned) contentText = cleaned.slice(0, MAX_INDEX_CHARS);
+      } catch (err) {
+        console.warn("PDF text extraction failed:", err);
+      }
+    }
+
     const { data: doc, error: insertErr } = await supabase
       .from("documents")
       .insert({
@@ -93,6 +107,7 @@ export async function POST(request: NextRequest) {
         drive_web_link: uploaded.webViewLink,
         mime_type: file.type || null,
         size_bytes: file.size,
+        content_text: contentText,
       })
       .select()
       .single();
