@@ -32,6 +32,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState<"upload" | "review">("upload");
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [semesterName, setSemesterName] = useState("");
@@ -81,6 +82,7 @@ export default function OnboardingPage() {
 
   async function confirm() {
     setBusy(true);
+    setBusyLabel("Creando semestre...");
     setError(null);
     const supabase = createClient();
     try {
@@ -141,10 +143,22 @@ export default function OnboardingPage() {
         }
       }
 
+      setBusyLabel("Creando carpetas en Google Drive...");
+      try {
+        await fetch("/api/drive/setup-semester", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ semesterId: semester.id }),
+        });
+      } catch {
+        // Si Drive falla, el dashboard ofrece reintentar
+      }
+
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al guardar");
       setBusy(false);
+      setBusyLabel(null);
     }
   }
 
@@ -361,7 +375,7 @@ export default function OnboardingPage() {
               disabled={busy || !semesterName || subjects.length === 0}
               className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:shadow-indigo-500/40 hover:brightness-110 disabled:opacity-50 disabled:shadow-none"
             >
-              {busy ? "Creando semestre..." : "Confirmar y crear semestre"}
+              {busy ? busyLabel ?? "Guardando..." : "Confirmar y crear semestre"}
             </button>
           </div>
         </div>

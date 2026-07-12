@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ScheduleBlock, Subject } from "@/lib/types";
+import { DriveBanner } from "./drive-banner";
 import { SignOutButton } from "./sign-out-button";
 import { WeeklySchedule } from "./weekly-schedule";
 
@@ -60,6 +61,12 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link
+            href="/biblioteca"
+            className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+          >
+            Biblioteca
+          </Link>
+          <Link
             href="/onboarding"
             className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
           >
@@ -68,6 +75,8 @@ export default async function DashboardPage() {
           <SignOutButton />
         </div>
       </header>
+
+      {!semester.drive_folder_id && <DriveBanner semesterId={semester.id} />}
 
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
