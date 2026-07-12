@@ -146,6 +146,7 @@ export type ReferenceGroup = {
   id: string;
   user_id: string;
   name: string;
+  subject_id: string | null;
   created_at: string;
 };
 

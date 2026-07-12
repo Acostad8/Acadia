@@ -65,6 +65,7 @@ export function ReferencesClient({
   const [groupDraft, setGroupDraft] = useState<{
     id: string | null;
     name: string;
+    subjectId: string;
   } | null>(null);
   const [biblioOpen, setBiblioOpen] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -232,10 +233,11 @@ export function ReferencesClient({
     }
     setBusy(true);
     setError(null);
+    const subjectId = groupDraft.subjectId || null;
     if (groupDraft.id) {
       const { data, error: err } = await supabase
         .from("reference_groups")
-        .update({ name })
+        .update({ name, subject_id: subjectId })
         .eq("id", groupDraft.id)
         .select()
         .single();
@@ -250,7 +252,7 @@ export function ReferencesClient({
     } else {
       const { data, error: err } = await supabase
         .from("reference_groups")
-        .insert({ name, user_id: userId })
+        .insert({ name, user_id: userId, subject_id: subjectId })
         .select()
         .single();
       setBusy(false);
@@ -305,36 +307,56 @@ export function ReferencesClient({
     [inGroup, style]
   );
 
-  async function copyBibliography() {
-    const plain = bibliography.map((b) => b.text).join("\n\n");
-    // HTML con sangría francesa: al pegar en Word/Docs conserva el formato
-    const htmlItems = bibliography
+  function escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  // Sangría francesa: 36pt (0.5") + interlineado doble, unidades pt (las que
+  // mejor respetan Word y Google Docs al pegar)
+  function bibliographyHtml(): string {
+    const items = bibliography
       .map(
         (b) =>
-          `<p style="margin:0 0 12pt 0.5in;text-indent:-0.5in;line-height:2;">${b.text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")}</p>`
+          `<p class="MsoNormal" style="margin:0pt 0pt 12pt 36pt;text-indent:-36pt;line-height:200%;mso-line-height-rule:exactly;font-size:12pt;font-family:'Times New Roman',serif;">${escapeHtml(b.text)}</p>`
       )
-      .join("");
+      .join("\n");
+    return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>p.MsoNormal{margin-left:36pt;text-indent:-36pt;line-height:200%;font-size:12pt;font-family:'Times New Roman',serif;}</style></head><body>${items}</body></html>`;
+  }
+
+  async function copyBibliography() {
+    const plain = bibliography.map((b) => b.text).join("\n\n");
+    const html = bibliographyHtml();
     try {
       if (typeof ClipboardItem !== "undefined") {
         await navigator.clipboard.write([
           new ClipboardItem({
-            "text/html": new Blob([htmlItems], { type: "text/html" }),
+            "text/html": new Blob([html], { type: "text/html" }),
             "text/plain": new Blob([plain], { type: "text/plain" }),
           }),
         ]);
       } else {
         await navigator.clipboard.writeText(plain);
       }
-      setCopiedAll(true);
-      setTimeout(() => setCopiedAll(false), 2000);
     } catch {
       await navigator.clipboard.writeText(plain);
-      setCopiedAll(true);
-      setTimeout(() => setCopiedAll(false), 2000);
     }
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  }
+
+  /** Descarga .doc (HTML que Word abre con la sangría y el interlineado ya aplicados). */
+  function downloadWord() {
+    const blob = new Blob([bibliographyHtml()], {
+      type: "application/msword",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `bibliografia-${(activeGroup?.name ?? "todas").toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, "-")}.doc`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   const activeGroup = groups.find((g) => g.id === activeGroupId) ?? null;
@@ -361,27 +383,46 @@ export function ReferencesClient({
         </button>
         {groups.map((g) => {
           const count = references.filter((r) => r.group_id === g.id).length;
+          const subject = g.subject_id
+            ? subjectById.get(g.subject_id)
+            : undefined;
           return (
             <button
               key={g.id}
               onClick={() => setActiveGroupId(g.id)}
-              onDoubleClick={() => setGroupDraft({ id: g.id, name: g.name })}
-              title="Doble clic para renombrar o eliminar"
-              className={`rounded-xl px-3.5 py-2 text-sm font-medium transition ${
+              onDoubleClick={() =>
+                setGroupDraft({
+                  id: g.id,
+                  name: g.name,
+                  subjectId: g.subject_id ?? "",
+                })
+              }
+              title={
+                subject
+                  ? `Materia: ${subject.name} · doble clic para editar`
+                  : "Doble clic para renombrar o eliminar"
+              }
+              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition ${
                 activeGroupId === g.id
                   ? "bg-white text-zinc-900"
                   : "border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white"
               }`}
             >
+              {subject && (
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: subject.color ?? "#6366f1" }}
+                />
+              )}
               {g.name}
-              <span className="ml-1.5 text-xs opacity-60">{count}</span>
+              <span className="text-xs opacity-60">{count}</span>
             </button>
           );
         })}
         <button
           onClick={() => {
             setError(null);
-            setGroupDraft({ id: null, name: "" });
+            setGroupDraft({ id: null, name: "", subjectId: "" });
           }}
           className="rounded-xl border border-dashed border-white/20 px-3.5 py-2 text-sm text-zinc-500 transition hover:border-indigo-400/50 hover:text-white"
         >
@@ -390,7 +431,11 @@ export function ReferencesClient({
         {activeGroup && (
           <button
             onClick={() =>
-              setGroupDraft({ id: activeGroup.id, name: activeGroup.name })
+              setGroupDraft({
+                id: activeGroup.id,
+                name: activeGroup.name,
+                subjectId: activeGroup.subject_id ?? "",
+              })
             }
             className="rounded-xl px-2.5 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-white"
             title="Renombrar o eliminar este grupo"
@@ -782,6 +827,25 @@ export function ReferencesClient({
               autoFocus
               className={`${inputClasses} mt-4 w-full`}
             />
+            <label className="mt-3 block">
+              <span className="mb-1 block text-xs text-zinc-500">
+                Materia asociada (opcional)
+              </span>
+              <select
+                value={groupDraft.subjectId}
+                onChange={(e) =>
+                  setGroupDraft({ ...groupDraft, subjectId: e.target.value })
+                }
+                className={`${inputClasses} w-full`}
+              >
+                <option value="">Sin materia — proyecto transversal</option>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             {error && (
               <p className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
                 {error}
@@ -841,12 +905,21 @@ export function ReferencesClient({
                   {style === "APA 7" ? " · sangría francesa" : ""}
                 </p>
               </div>
-              <button
-                onClick={copyBibliography}
-                className="shrink-0 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
-              >
-                {copiedAll ? "¡Copiada!" : "Copiar todo"}
-              </button>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  onClick={downloadWord}
+                  className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+                  title="Descarga un .doc que Word abre con sangría francesa e interlineado doble"
+                >
+                  Descargar Word
+                </button>
+                <button
+                  onClick={copyBibliography}
+                  className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+                >
+                  {copiedAll ? "¡Copiada!" : "Copiar todo"}
+                </button>
+              </div>
             </div>
             <div className="overflow-y-auto p-6 pt-4">
               <div className="space-y-4">
@@ -861,8 +934,10 @@ export function ReferencesClient({
                 ))}
               </div>
               <p className="mt-6 text-xs text-zinc-600">
-                «Copiar todo» copia con formato: al pegar en Word o Google Docs
-                se conserva la sangría francesa y el interlineado doble.
+                «Copiar todo» pega con formato en Word y Google Docs. Si tu
+                editor ignora la sangría al pegar, usa «Descargar Word»: el
+                archivo abre con sangría francesa e interlineado doble ya
+                aplicados.
               </p>
             </div>
           </div>
