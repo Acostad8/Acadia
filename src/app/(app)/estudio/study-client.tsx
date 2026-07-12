@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { computeStreak } from "@/lib/streak";
 import type { StudySession, Subject } from "@/lib/types";
 
 const FOCUS_PRESETS = [25, 50] as const;
@@ -142,17 +143,8 @@ export function StudyClient({
     .filter((s) => new Date(s.started_at) >= weekStart)
     .reduce((sum, s) => sum + s.duration_minutes, 0);
 
-  // Racha: días consecutivos con al menos una sesión
-  const daysWithStudy = new Set(
-    sessions.map((s) => toDateKey(new Date(s.started_at)))
-  );
-  let streak = 0;
-  const cursor = new Date(now);
-  if (!daysWithStudy.has(toDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
-  while (daysWithStudy.has(toDateKey(cursor))) {
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
+  const streakInfo = computeStreak(sessions);
+  const streak = streakInfo.current;
 
   const minutesBySubject = useMemo(() => {
     const map = new Map<string, number>();
@@ -381,7 +373,14 @@ export function StudyClient({
           {[
             { label: "Hoy", value: formatHours(todayMinutes) },
             { label: "Esta semana", value: formatHours(weekMinutes) },
-            { label: "Racha", value: `${streak} día${streak === 1 ? "" : "s"}` },
+            {
+              label: streakInfo.hasToday
+                ? "Racha · hoy ✓"
+                : streak > 0
+                  ? "Racha · en riesgo"
+                  : "Racha",
+              value: `${streak} día${streak === 1 ? "" : "s"}`,
+            },
           ].map((stat) => (
             <div
               key={stat.label}

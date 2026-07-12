@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { relativeDue } from "@/lib/dates";
 import { formatGrade, summarizeGrades } from "@/lib/grades";
+import { computeStreak } from "@/lib/streak";
 import type {
   CalendarEvent,
   Evaluation,
@@ -11,6 +12,7 @@ import type {
   Subject,
 } from "@/lib/types";
 import { WeeklySchedule } from "./weekly-schedule";
+import { NextClassCountdown } from "./live-clock";
 
 const DriveBanner = dynamic(() =>
   import("./drive-banner").then((m) => m.DriveBanner)
@@ -58,13 +60,23 @@ export default async function DashboardPage() {
       ])
     : [{ data: [] as ScheduleBlock[] }, { data: [] as Evaluation[] }];
 
-  const { data: upcomingEvents } = await supabase
-    .from("events")
-    .select()
-    .eq("semester_id", semester.id)
-    .eq("completed", false)
-    .order("due_at")
-    .limit(5);
+  const since60 = new Date();
+  since60.setDate(since60.getDate() - 60);
+  const [{ data: upcomingEvents }, { data: recentSessions }] = await Promise.all([
+    supabase
+      .from("events")
+      .select()
+      .eq("semester_id", semester.id)
+      .eq("completed", false)
+      .order("due_at")
+      .limit(5),
+    supabase
+      .from("study_sessions")
+      .select("started_at")
+      .gte("started_at", since60.toISOString()),
+  ]);
+
+  const streak = computeStreak((recentSessions ?? []) as { started_at: string }[]);
 
   const summaryBySubject = new Map(
     subjectIds.map((sid) => [
@@ -166,20 +178,36 @@ export default async function DashboardPage() {
               {hi}
               {displayName ? `, ${displayName}` : ""}.
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-zinc-400">
-              Semestre{" "}
-              <span className="font-medium text-zinc-200">
-                {semester.label ?? semester.name}
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-zinc-400">
+              <span>
+                Semestre{" "}
+                <span className="font-medium text-zinc-200">
+                  {semester.label ?? semester.name}
+                </span>
+                {ongoing && ongoingSubject
+                  ? ` · clase en curso: ${ongoingSubject.name}`
+                  : nextUp && nextSubject
+                    ? ` · próxima clase: ${nextSubject.name} a las ${nextUp.start_time.slice(0, 5)}`
+                    : todayBlocks.length === 0
+                      ? " · sin clases hoy"
+                      : " · terminaste tus clases de hoy"}
+                .
               </span>
-              {ongoing && ongoingSubject
-                ? ` · clase en curso: ${ongoingSubject.name}`
-                : nextUp && nextSubject
-                  ? ` · próxima clase: ${nextSubject.name} a las ${nextUp.start_time.slice(0, 5)}`
-                  : todayBlocks.length === 0
-                    ? " · sin clases hoy"
-                    : " · terminaste tus clases de hoy"}
-              .
-            </p>
+              {ongoing && (
+                <NextClassCountdown
+                  startTime={ongoing.start_time}
+                  endTime={ongoing.end_time}
+                  ongoing
+                />
+              )}
+              {!ongoing && nextUp && (
+                <NextClassCountdown
+                  startTime={nextUp.start_time}
+                  endTime={nextUp.end_time}
+                  ongoing={false}
+                />
+              )}
+            </div>
 
             {progressPct !== null && (
               <div className="mt-6 max-w-md">
@@ -244,7 +272,7 @@ export default async function DashboardPage() {
           </section>
         )}
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {[
             {
               label: "Materias",
@@ -318,6 +346,34 @@ export default async function DashboardPage() {
                 urgentCount > 0
                   ? "text-red-300 bg-red-500/10"
                   : "text-sky-300 bg-sky-500/10",
+            },
+            {
+              label: "Racha",
+              value:
+                streak.current > 0
+                  ? `${streak.current} d${streak.current === 1 ? "ía" : "ías"}`
+                  : "—",
+              hint: streak.hasToday
+                ? "hoy ✓"
+                : streak.current > 0
+                  ? "estudia hoy para no romperla"
+                  : streak.longest > 0
+                    ? `mejor: ${streak.longest} d${streak.longest === 1 ? "ía" : "ías"}`
+                    : undefined,
+              icon: (
+                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                  <path
+                    d="M13 3s3 3 3 7-3 5-3 5 4 1 4 4-3 3-5 3-5-1-5-4c0-4 6-6 6-15Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ),
+              tint:
+                streak.current > 0
+                  ? "text-orange-300 bg-orange-500/10"
+                  : "text-zinc-400 bg-white/5",
             },
           ].map((stat) => (
             <div
