@@ -61,6 +61,12 @@ export default async function DashboardPage() {
     ])
   );
 
+  const now = new Date();
+  const todayBlocks = ((blocks ?? []) as ScheduleBlock[])
+    .filter((b) => b.day_of_week === now.getDay())
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+  const nowTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
   const totalCredits = (subjects ?? []).reduce(
     (sum, s) => sum + (s.credits ?? 0),
     0
@@ -109,6 +115,55 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {todayBlocks.length > 0 && (
+        <section className="mt-10">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+            Clases de hoy
+          </h2>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {todayBlocks.map((b) => {
+              const subject = (subjects ?? []).find(
+                (s) => s.id === b.subject_id
+              );
+              const ended = b.end_time.slice(0, 5) <= nowTime;
+              const ongoing =
+                b.start_time.slice(0, 5) <= nowTime &&
+                nowTime < b.end_time.slice(0, 5);
+              return (
+                <Link
+                  key={b.id}
+                  href={subject ? `/materias/${subject.id}` : "/dashboard"}
+                  className={`min-w-52 shrink-0 rounded-2xl border p-4 backdrop-blur-sm transition hover:border-white/25 ${
+                    ongoing
+                      ? "border-indigo-400/40 bg-indigo-500/10"
+                      : "border-white/10 bg-white/[0.03]"
+                  } ${ended ? "opacity-50" : ""}`}
+                >
+                  <p className="flex items-center gap-2 text-sm font-semibold text-white">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: subject?.color ?? "#6366f1" }}
+                    />
+                    <span className="truncate">
+                      {subject?.name ?? "Clase"}
+                    </span>
+                  </p>
+                  <p className="mt-1.5 text-xs text-zinc-400">
+                    {b.start_time.slice(0, 5)}–{b.end_time.slice(0, 5)}
+                    {b.room_code ? ` · ${b.room_code}` : ""}
+                  </p>
+                  {ongoing && (
+                    <p className="mt-2 text-[11px] font-medium text-indigo-300">
+                      En curso ahora
+                    </p>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {(upcomingEvents ?? []).length > 0 && (
         <section className="mt-10">

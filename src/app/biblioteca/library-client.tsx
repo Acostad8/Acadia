@@ -27,6 +27,7 @@ export function LibraryClient({
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const subjectById = useMemo(
     () => new Map(subjects.map((s) => [s.id, s])),
@@ -95,9 +96,16 @@ export function LibraryClient({
     }
   }
 
-  const visible = filter
-    ? documents.filter((d) => d.subject_id === filter)
-    : documents;
+  const query = search.trim().toLowerCase();
+  const visible = documents.filter((d) => {
+    if (filter && d.subject_id !== filter) return false;
+    if (!query) return true;
+    return (
+      d.name.toLowerCase().includes(query) ||
+      (d.doc_type ?? "").toLowerCase().includes(query) ||
+      d.tags.some((t) => t.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <div className="mt-8 space-y-8">
@@ -220,6 +228,16 @@ export function LibraryClient({
         </p>
       )}
 
+      {/* Búsqueda */}
+      {documents.length > 0 && (
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por nombre, tipo o etiqueta..."
+          className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-indigo-400/60"
+        />
+      )}
+
       {/* Filtros */}
       {subjects.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -258,7 +276,9 @@ export function LibraryClient({
         <p className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-zinc-500">
           {documents.length === 0
             ? "Aún no hay documentos. Sube el primero."
-            : "Sin documentos para este filtro."}
+            : query
+              ? "Sin resultados para tu búsqueda."
+              : "Sin documentos para este filtro."}
         </p>
       ) : (
         <ul className="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
