@@ -97,10 +97,18 @@ export function ReferencesClient({
       const isDoi =
         /^10\.\d{4,}/.test(value) ||
         /^https?:\/\/(dx\.)?doi\.org\//i.test(value);
+      const compact = value.replace(/[\s-]/g, "");
+      const isIsbn =
+        /^(97[89])?\d{9}[\dXx]$/.test(compact) &&
+        (compact.length === 10 || compact.length === 13);
       let res: Response;
       if (isDoi) {
         const doi = value.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
         res = await fetch(`/api/references/doi?doi=${encodeURIComponent(doi)}`);
+      } else if (isIsbn) {
+        res = await fetch(
+          `/api/references/isbn?isbn=${encodeURIComponent(compact)}`
+        );
       } else {
         res = await fetch("/api/references/url", {
           method: "POST",
@@ -724,7 +732,7 @@ export function ReferencesClient({
             <>
             <div className="mt-4 rounded-2xl border border-indigo-400/25 bg-indigo-500/[0.06] p-3">
               <p className="mb-2 text-xs font-medium text-indigo-300">
-                Pega un enlace o DOI y Acadia completa la referencia
+                Pega un enlace, DOI o ISBN y Acadia completa la referencia
               </p>
               <div className="flex gap-2">
                 <input
@@ -736,7 +744,7 @@ export function ReferencesClient({
                       autofill();
                     }
                   }}
-                  placeholder="https://... o 10.1000/xyz123"
+                  placeholder="https://... · 10.1000/xyz · 978-3-16-148410-0"
                   className={`${inputClasses} min-w-0 flex-1`}
                 />
                 <button
