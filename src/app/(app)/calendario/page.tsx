@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { CalendarEvent, Subject } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { CalendarClient } from "./calendar-client";
 
 export default async function CalendarioPage() {
@@ -32,9 +31,7 @@ export default async function CalendarioPage() {
   ]);
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10">
         <header>
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             {semester.label ?? semester.name}
@@ -51,6 +48,5 @@ export default async function CalendarioPage() {
           initialEvents={(events ?? []) as CalendarEvent[]}
         />
       </main>
-    </>
   );
 }

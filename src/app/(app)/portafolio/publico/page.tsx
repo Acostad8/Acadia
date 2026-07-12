@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { PublicProfile } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { PublicProfileEditor } from "./editor";
 
 export default async function PublicProfilePage() {
@@ -33,9 +32,7 @@ export default async function PublicProfilePage() {
     typeof meta?.avatar_url === "string" ? (meta.avatar_url as string) : null;
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-3xl px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-10">
         <header>
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             Portafolio
@@ -58,6 +55,5 @@ export default async function PublicProfilePage() {
           publicProjectsCount={publicProjects ?? 0}
         />
       </main>
-    </>
   );
 }

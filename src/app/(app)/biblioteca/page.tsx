@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Document, Subject } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { LibraryClient } from "./library-client";
 
 export default async function BibliotecaPage() {
@@ -31,9 +30,7 @@ export default async function BibliotecaPage() {
     .order("uploaded_at", { ascending: false });
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
@@ -55,6 +52,5 @@ export default async function BibliotecaPage() {
           driveReady={Boolean(semester.drive_folder_id)}
         />
       </main>
-    </>
   );
 }

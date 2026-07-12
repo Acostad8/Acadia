@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Project, Semester, Subject } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { PortfolioClient } from "./portfolio-client";
 
 export default async function PortafolioPage() {
@@ -26,9 +25,7 @@ export default async function PortafolioPage() {
   const current = (semesters as Semester[]).find((s) => s.is_current);
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10">
         <header>
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             Toda la carrera
@@ -45,6 +42,5 @@ export default async function PortafolioPage() {
           initialProjects={(projects ?? []) as Project[]}
         />
       </main>
-    </>
   );
 }

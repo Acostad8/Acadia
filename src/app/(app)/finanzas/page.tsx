@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AppNav } from "@/components/app-nav";
-import { AssistantClient } from "./assistant-client";
+import type { Transaction } from "@/lib/types";
+import { FinanceClient } from "./finance-client";
 
-export default async function AsistentePage() {
+export default async function FinanzasPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,25 +17,28 @@ export default async function AsistentePage() {
     .maybeSingle();
   if (!semester) redirect("/onboarding");
 
+  const { data: transactions } = await supabase
+    .from("transactions")
+    .select()
+    .order("occurred_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-10">
+    <main className="mx-auto w-full max-w-5xl px-4 py-10">
         <header>
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             {semester.label ?? semester.name}
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-white">
-            Asistente
+            Finanzas
           </h1>
-          <p className="mt-1.5 text-sm text-zinc-500">
-            Conoce tus materias, notas y entregas. Pregúntale lo que
-            necesites.
-          </p>
         </header>
 
-        <AssistantClient />
+        <FinanceClient
+          userId={user.id}
+          semesterId={semester.id}
+          initialTransactions={(transactions ?? []) as Transaction[]}
+        />
       </main>
-    </>
   );
 }

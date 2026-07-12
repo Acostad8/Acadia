@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { StudySession, Subject } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { StudyClient } from "./study-client";
 
 export default async function EstudioPage() {
@@ -35,9 +34,7 @@ export default async function EstudioPage() {
   ]);
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
+    <main className="mx-auto w-full max-w-5xl px-4 py-10">
         <header>
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             {semester.label ?? semester.name}
@@ -53,6 +50,5 @@ export default async function EstudioPage() {
           initialSessions={(sessions ?? []) as StudySession[]}
         />
       </main>
-    </>
   );
 }

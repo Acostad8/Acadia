@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Semester } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { SemestersClient } from "./semesters-client";
 
 export default async function SemestresPage() {
@@ -30,9 +29,7 @@ export default async function SemestresPage() {
   }
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-3xl px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl px-4 py-10">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
@@ -55,6 +52,5 @@ export default async function SemestresPage() {
           subjectCounts={Object.fromEntries(countBySemester)}
         />
       </main>
-    </>
   );
 }

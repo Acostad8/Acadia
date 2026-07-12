@@ -14,8 +14,6 @@ import type {
   Semester,
   Subject,
 } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
-
 type SubjectRow = {
   subject: Subject;
   summary: GradeSummary;
@@ -207,9 +205,7 @@ export default async function AnaliticaPage() {
   const lost = currentRows.filter((r) => r.summary.status === "perdida").length;
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10">
         <header>
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             {current ? (current.label ?? current.name) : "Acadia"}
@@ -652,6 +648,5 @@ export default async function AnaliticaPage() {
           </section>
         )}
       </main>
-    </>
   );
 }

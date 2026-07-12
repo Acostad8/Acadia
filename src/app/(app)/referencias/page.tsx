@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { BibReference, ReferenceGroup, Subject } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { ReferencesClient } from "./references-client";
 
 export default async function ReferenciasPage() {
@@ -33,9 +32,7 @@ export default async function ReferenciasPage() {
     ]);
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
+    <main className="mx-auto w-full max-w-5xl px-4 py-10">
         <header>
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             {semester.label ?? semester.name}
@@ -52,6 +49,5 @@ export default async function ReferenciasPage() {
           initialGroups={(groups ?? []) as ReferenceGroup[]}
         />
       </main>
-    </>
   );
 }

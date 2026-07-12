@@ -9,7 +9,6 @@ import type {
   ScheduleBlock,
   Subject,
 } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { DriveBanner } from "./drive-banner";
 import { WeeklySchedule } from "./weekly-schedule";
 
@@ -145,9 +144,7 @@ export default async function DashboardPage() {
   });
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8">
+    <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8">
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/10 via-white/[0.03] to-violet-600/10 p-6 backdrop-blur-sm sm:p-8">
           <div
             aria-hidden
@@ -544,6 +541,5 @@ export default async function DashboardPage() {
           </div>
         </section>
       </main>
-    </>
   );
 }

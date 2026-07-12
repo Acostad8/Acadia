@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Bookmark, Subject } from "@/lib/types";
-import { AppNav } from "@/components/app-nav";
 import { BookmarksClient } from "./bookmarks-client";
 
 export default async function EnlacesPage() {
@@ -30,9 +29,7 @@ export default async function EnlacesPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <>
-      <AppNav />
-      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10">
         <header>
           <p className="mb-1 text-xs font-medium uppercase tracking-widest text-indigo-400">
             {semester.label ?? semester.name}
@@ -52,6 +49,5 @@ export default async function EnlacesPage() {
           initialBookmarks={(bookmarks ?? []) as Bookmark[]}
         />
       </main>
-    </>
   );
 }
