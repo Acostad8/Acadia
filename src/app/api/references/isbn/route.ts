@@ -155,14 +155,22 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json({
-    title: result.title,
-    authors: result.authors,
-    year: result.year,
-    source: result.source,
-    url: result.url,
-    doi: result.doi,
-    kind: "libro",
-    isbn,
-  });
+  return NextResponse.json(
+    {
+      title: result.title,
+      authors: result.authors,
+      year: result.year,
+      source: result.source,
+      url: result.url,
+      doi: result.doi,
+      kind: "libro",
+      isbn,
+    },
+    {
+      headers: {
+        "Cache-Control":
+          "private, max-age=86400, stale-while-revalidate=604800",
+      },
+    }
+  );
 }

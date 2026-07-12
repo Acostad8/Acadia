@@ -64,13 +64,21 @@ export async function GET(request: Request) {
         ? "articulo"
         : "otro";
 
-  return NextResponse.json({
-    title: work.title?.[0] ?? "",
-    authors: (work.author ?? []).map(formatAuthor).filter(Boolean).join("; "),
-    year: work.issued?.["date-parts"]?.[0]?.[0] ?? null,
-    source: work["container-title"]?.[0] ?? work.publisher ?? "",
-    url: work.URL ?? "",
-    doi,
-    kind,
-  });
+  return NextResponse.json(
+    {
+      title: work.title?.[0] ?? "",
+      authors: (work.author ?? []).map(formatAuthor).filter(Boolean).join("; "),
+      year: work.issued?.["date-parts"]?.[0]?.[0] ?? null,
+      source: work["container-title"]?.[0] ?? work.publisher ?? "",
+      url: work.URL ?? "",
+      doi,
+      kind,
+    },
+    {
+      headers: {
+        "Cache-Control":
+          "private, max-age=86400, stale-while-revalidate=604800",
+      },
+    }
+  );
 }

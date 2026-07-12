@@ -228,6 +228,8 @@ export function BookmarksClient({
               <img
                 src={draft.faviconUrl}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="h-6 w-6 rounded"
               />
             )}
@@ -467,6 +469,8 @@ export function BookmarksClient({
                     <img
                       src={b.favicon_url}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="h-8 w-8 shrink-0 rounded-lg bg-white/5 p-1"
                     />
                   ) : (

@@ -145,11 +145,19 @@ export async function POST(request: Request) {
 
   const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(url.hostname)}`;
 
-  return NextResponse.json({
-    url: url.toString(),
-    title: title.slice(0, 300),
-    description: description.slice(0, 500) || null,
-    kind: guessKind(url, title),
-    favicon_url: favicon,
-  });
+  return NextResponse.json(
+    {
+      url: url.toString(),
+      title: title.slice(0, 300),
+      description: description.slice(0, 500) || null,
+      kind: guessKind(url, title),
+      favicon_url: favicon,
+    },
+    {
+      headers: {
+        "Cache-Control":
+          "private, max-age=3600, stale-while-revalidate=86400",
+      },
+    }
+  );
 }

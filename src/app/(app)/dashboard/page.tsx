@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { relativeDue } from "@/lib/dates";
@@ -9,8 +10,11 @@ import type {
   ScheduleBlock,
   Subject,
 } from "@/lib/types";
-import { DriveBanner } from "./drive-banner";
 import { WeeklySchedule } from "./weekly-schedule";
+
+const DriveBanner = dynamic(() =>
+  import("./drive-banner").then((m) => m.DriveBanner)
+);
 
 function greeting(hour: number): string {
   if (hour < 6) return "Buenas noches";
@@ -148,11 +152,11 @@ export default async function DashboardPage() {
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/10 via-white/[0.03] to-violet-600/10 p-6 backdrop-blur-sm sm:p-8">
           <div
             aria-hidden
-            className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-indigo-500/20 blur-3xl"
+            className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-indigo-500/20 blur-2xl"
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-violet-600/15 blur-3xl"
+            className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-violet-600/15 blur-2xl"
           />
           <div className="relative">
             <p className="text-xs font-medium uppercase tracking-widest text-indigo-300">

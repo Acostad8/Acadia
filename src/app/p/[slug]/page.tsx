@@ -95,6 +95,8 @@ export default async function PublicPortfolioPage({
             <img
               src={profile.avatar_url}
               alt={profile.display_name}
+              loading="eager"
+              decoding="async"
               className="h-24 w-24 shrink-0 rounded-2xl border border-white/10 object-cover"
             />
           ) : (
@@ -161,6 +163,8 @@ export default async function PublicPortfolioPage({
                     <img
                       src={p.cover_url}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/60 to-transparent" />
