@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { PROJECT_STATUSES } from "@/lib/types";
@@ -31,6 +32,9 @@ type Draft = {
   repoUrl: string;
   demoUrl: string;
   subjectId: string;
+  isPublic: boolean;
+  coverUrl: string;
+  highlights: string;
 };
 
 function emptyDraft(): Draft {
@@ -44,6 +48,9 @@ function emptyDraft(): Draft {
     repoUrl: "",
     demoUrl: "",
     subjectId: "",
+    isPublic: false,
+    coverUrl: "",
+    highlights: "",
   };
 }
 
@@ -82,6 +89,9 @@ export function PortfolioClient({
       repoUrl: p.repo_url ?? "",
       demoUrl: p.demo_url ?? "",
       subjectId: p.subject_id ?? "",
+      isPublic: p.is_public,
+      coverUrl: p.cover_url ?? "",
+      highlights: p.highlights ?? "",
     });
   }
 
@@ -108,6 +118,9 @@ export function PortfolioClient({
       demo_url: draft.demoUrl.trim() || null,
       subject_id: draft.subjectId || null,
       semester_id: subject?.semester_id ?? currentSemesterId,
+      is_public: draft.isPublic,
+      cover_url: draft.coverUrl.trim() || null,
+      highlights: draft.highlights.trim() || null,
     };
     if (draft.id) {
       const { data, error: err } = await supabase
@@ -190,15 +203,23 @@ export function PortfolioClient({
             </button>
           ))}
         </div>
-        <button
-          onClick={() => {
-            setError(null);
-            setDraft(emptyDraft());
-          }}
-          className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
-        >
-          + Nuevo proyecto
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/portafolio/publico"
+            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+          >
+            Perfil público
+          </Link>
+          <button
+            onClick={() => {
+              setError(null);
+              setDraft(emptyDraft());
+            }}
+            className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+          >
+            + Nuevo proyecto
+          </button>
+        </div>
       </div>
 
       {error && !draft && (
@@ -261,10 +282,15 @@ export function PortfolioClient({
                     )}
                   </div>
                 )}
-                <p className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
+                <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
                   {subject?.name ?? "Sin materia"}
                   {p.repo_url && <span>· Repo</span>}
                   {p.demo_url && <span>· Demo</span>}
+                  {p.is_public && (
+                    <span className="ml-auto rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
+                      Público
+                    </span>
+                  )}
                 </p>
               </button>
             );
@@ -366,6 +392,50 @@ export function PortfolioClient({
                 placeholder="URL de la demo o video"
                 className={`${inputClasses} w-full`}
               />
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={draft.isPublic}
+                    onChange={(e) =>
+                      setDraft({ ...draft, isPublic: e.target.checked })
+                    }
+                    className="mt-0.5 h-4 w-4 cursor-pointer accent-indigo-500"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white">
+                      Mostrar en mi portafolio público
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                      Aparecerá en{" "}
+                      <span className="font-mono text-indigo-300">/p/[tu-slug]</span>{" "}
+                      cuando tu perfil esté publicado.
+                    </p>
+                  </div>
+                </label>
+                {draft.isPublic && (
+                  <div className="mt-3 space-y-3">
+                    <input
+                      value={draft.coverUrl}
+                      onChange={(e) =>
+                        setDraft({ ...draft, coverUrl: e.target.value })
+                      }
+                      placeholder="URL de imagen de portada (opcional)"
+                      className={`${inputClasses} w-full`}
+                    />
+                    <textarea
+                      value={draft.highlights}
+                      onChange={(e) =>
+                        setDraft({ ...draft, highlights: e.target.value })
+                      }
+                      placeholder="Logros o puntos destacados (opcional, se muestra en el portafolio público)"
+                      rows={3}
+                      className={`${inputClasses} w-full resize-none`}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {error && (
