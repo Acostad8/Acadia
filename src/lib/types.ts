@@ -171,6 +171,47 @@ export type Project = {
   members: string | null;
   repo_url: string | null;
   demo_url: string | null;
+  is_public: boolean;
+  cover_url: string | null;
+  highlights: string | null;
+  created_at: string;
+};
+
+export type PublicProfile = {
+  user_id: string;
+  slug: string;
+  display_name: string;
+  headline: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  website_url: string | null;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export const BOOKMARK_KINDS = [
+  "articulo",
+  "video",
+  "blog",
+  "paper",
+  "normativa",
+  "repositorio",
+  "otro",
+] as const;
+
+export type BookmarkKind = (typeof BOOKMARK_KINDS)[number];
+
+export type Bookmark = {
+  id: string;
+  user_id: string;
+  subject_id: string | null;
+  url: string;
+  title: string;
+  description: string | null;
+  kind: BookmarkKind;
+  tags: string[];
+  favicon_url: string | null;
   created_at: string;
 };
 
