@@ -43,18 +43,26 @@ export default async function AnaliticaPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const studySince = new Date();
+  studySince.setDate(studySince.getDate() - 7);
+
   const [
     { data: semesters },
     { data: subjects },
     { data: evaluations },
     { data: blocks },
     { data: events },
+    { data: studySessions },
   ] = await Promise.all([
     supabase.from("semesters").select().order("created_at"),
     supabase.from("subjects").select().order("name"),
     supabase.from("evaluations").select(),
     supabase.from("schedule_blocks").select(),
     supabase.from("events").select(),
+    supabase
+      .from("study_sessions")
+      .select("duration_minutes")
+      .gte("started_at", studySince.toISOString()),
   ]);
 
   if (!semesters || semesters.length === 0) redirect("/onboarding");
@@ -101,6 +109,11 @@ export default async function AnaliticaPage() {
 
   // Progreso global del semestre: % evaluado ponderado por créditos
   const semesterProgress = weightedBy(currentRows, (r) => r.summary.evaluatedPercent);
+
+  const studyMinutesWeek = ((studySessions ?? []) as { duration_minutes: number }[]).reduce(
+    (s, x) => s + x.duration_minutes,
+    0
+  );
 
   // ── Proyecciones ─────────────────────────────────────────────────────
   const projections = [
@@ -207,7 +220,7 @@ export default async function AnaliticaPage() {
         </header>
 
         {/* Indicadores */}
-        <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-7">
           {[
             {
               label: "Promedio semestre",
@@ -247,6 +260,17 @@ export default async function AnaliticaPage() {
               value: totalCredits > 0 ? riskCredits : "—",
               accent: false,
               danger: riskCredits > 0,
+            },
+            {
+              label: "Estudio esta semana",
+              value:
+                studyMinutesWeek > 0
+                  ? studyMinutesWeek >= 60
+                    ? `${Math.round(studyMinutesWeek / 6) / 10}h`
+                    : `${studyMinutesWeek}m`
+                  : "—",
+              accent: studyMinutesWeek >= 300,
+              danger: false,
             },
           ].map((stat) => (
             <div

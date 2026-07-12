@@ -174,6 +174,17 @@ export type Project = {
   created_at: string;
 };
 
+export type StudySession = {
+  id: string;
+  user_id: string;
+  subject_id: string | null;
+  started_at: string;
+  duration_minutes: number;
+  kind: "pomodoro" | "manual";
+  notes: string | null;
+  created_at: string;
+};
+
 export type ParsedSchedule = {
   semester: { name: string; label: string };
   subjects: ParsedSubject[];
