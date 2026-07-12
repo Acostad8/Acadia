@@ -1,6 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  decodeEntities,
+  extractHeuristic,
+  type Extraction,
+} from "@/lib/reference-extract";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -30,24 +35,8 @@ function isPrivateHost(hostname: string): boolean {
   return false;
 }
 
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) =>
-      String.fromCodePoint(parseInt(hex, 16))
-    )
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
-    .trim();
-}
-
-/** Extrae todas las etiquetas <meta> relevantes como texto "name: content". */
-function extractMetaTags(html: string): string {
+/** Etiquetas <meta> relevantes como texto "name: content" (evidencia para IA). */
+function metaTagsAsText(html: string): string {
   const lines: string[] = [];
   const re =
     /<meta\s+[^>]*?(?:name|property)=["']([^"']+)["'][^>]*?content=["']([^"']*)["'][^>]*?>|<meta\s+[^>]*?content=["']([^"']*)["'][^>]*?(?:name|property)=["']([^"']+)["'][^>]*?>/gi;
@@ -64,7 +53,7 @@ function extractMetaTags(html: string): string {
   return lines.join("\n");
 }
 
-function extractJsonLd(html: string): string {
+function jsonLdAsText(html: string): string {
   const blocks: string[] = [];
   const re =
     /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -76,7 +65,7 @@ function extractJsonLd(html: string): string {
 }
 
 /** Texto visible: quita scripts/estilos/etiquetas y colapsa espacios. */
-function extractVisibleText(html: string, limit: number): string {
+function visibleText(html: string, limit: number): string {
   const withoutBlocks = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -113,7 +102,8 @@ const EXTRACTION_SCHEMA = {
     },
     doi: {
       type: "string",
-      description: "DOI si aparece (solo el identificador, ej. 10.1000/xyz); cadena vacía si no",
+      description:
+        "DOI si aparece (solo el identificador, ej. 10.1000/xyz); cadena vacía si no",
     },
     kind: {
       type: "string",
@@ -131,16 +121,6 @@ const EXTRACTION_SCHEMA = {
   additionalProperties: false,
 };
 
-type Extraction = {
-  title: string;
-  authors: string[];
-  year: number | null;
-  source: string;
-  doi: string;
-  kind: "articulo" | "libro" | "web" | "otro";
-  confidence: "alta" | "media" | "baja";
-};
-
 async function extractWithClaude(
   url: string,
   html: string
@@ -153,13 +133,13 @@ async function extractWithClaude(
     titleTag ? `<title>: ${decodeEntities(titleTag).slice(0, 300)}` : "",
     "",
     "== ETIQUETAS META ==",
-    extractMetaTags(html) || "(ninguna)",
+    metaTagsAsText(html) || "(ninguna)",
     "",
     "== JSON-LD ==",
-    extractJsonLd(html) || "(ninguno)",
+    jsonLdAsText(html) || "(ninguno)",
     "",
     "== INICIO DEL TEXTO VISIBLE DE LA PÁGINA ==",
-    extractVisibleText(html, 3500),
+    visibleText(html, 3500),
   ].join("\n");
 
   const anthropic = new Anthropic();
@@ -198,44 +178,6 @@ Reglas:
     console.error("Claude extraction error:", err);
     return null;
   }
-}
-
-/** Fallback sin IA: meta tags básicas. */
-function extractBasic(url: URL, html: string): Extraction {
-  const pick = (names: string[]): string => {
-    for (const name of names) {
-      const re = new RegExp(
-        `<meta[^>]+(?:name|property)=["']${name}["'][^>]*content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]*(?:name|property)=["']${name}["']`,
-        "i"
-      );
-      const m = re.exec(html);
-      const value = decodeEntities(m?.[1] ?? m?.[2] ?? "");
-      if (value) return value;
-    }
-    return "";
-  };
-  const titleTag = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1];
-  const title =
-    pick(["citation_title", "og:title", "twitter:title"]) ||
-    (titleTag ? decodeEntities(titleTag) : "");
-  const author = pick(["citation_author", "author", "article:author"]);
-  const dateRaw = pick([
-    "citation_publication_date",
-    "article:published_time",
-    "date",
-  ]);
-  const yearMatch = /(\d{4})/.exec(dateRaw);
-  return {
-    title,
-    authors: author ? [author] : [],
-    year: yearMatch ? Number(yearMatch[1]) : null,
-    source:
-      pick(["citation_journal_title", "og:site_name"]) ||
-      url.hostname.replace(/^www\./, ""),
-    doi: pick(["citation_doi"]),
-    kind: pick(["citation_title"]) ? "articulo" : "web",
-    confidence: "baja",
-  };
 }
 
 export async function POST(request: Request) {
@@ -280,7 +222,9 @@ export async function POST(request: Request) {
     });
     if (!res.ok) {
       return NextResponse.json(
-        { error: `El sitio respondió ${res.status}. Prueba con otro enlace o llena los campos manualmente.` },
+        {
+          error: `El sitio respondió ${res.status}. Prueba con otro enlace o llena los campos manualmente.`,
+        },
         { status: 422 }
       );
     }
@@ -293,8 +237,23 @@ export async function POST(request: Request) {
     );
   }
 
-  const extraction =
-    (await extractWithClaude(url.toString(), html)) ?? extractBasic(url, html);
+  // 1) Extracción determinística (funciona sin ninguna API key)
+  let extraction = extractHeuristic(url, html);
+
+  // 2) Si el sitio no publica metadatos suficientes y hay key, Claude refuerza
+  if (extraction.confidence !== "alta" && process.env.ANTHROPIC_API_KEY) {
+    const enhanced = await extractWithClaude(url.toString(), html);
+    if (enhanced?.title) {
+      extraction = {
+        ...enhanced,
+        // Conservar lo estructurado si la IA no lo encontró
+        authors: enhanced.authors.length ? enhanced.authors : extraction.authors,
+        year: enhanced.year ?? extraction.year,
+        doi: enhanced.doi || extraction.doi,
+        source: enhanced.source || extraction.source,
+      };
+    }
+  }
 
   if (!extraction.title) {
     return NextResponse.json(
