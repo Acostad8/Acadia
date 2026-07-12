@@ -54,6 +54,7 @@ export function ReferencesClient({
   const [style, setStyle] = useState<CitationStyle>("APA 7");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
+  const [lookup, setLookup] = useState("");
   const [fetchingDoi, setFetchingDoi] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -64,16 +65,29 @@ export function ReferencesClient({
     [subjects]
   );
 
-  async function fillFromDoi() {
-    if (!draft?.doi.trim()) return;
+  async function autofill() {
+    if (!draft) return;
+    const value = lookup.trim();
+    if (!value) return;
     setFetchingDoi(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/references/doi?doi=${encodeURIComponent(draft.doi.trim())}`
-      );
+      const isDoi =
+        /^10\.\d{4,}/.test(value) ||
+        /^https?:\/\/(dx\.)?doi\.org\//i.test(value);
+      let res: Response;
+      if (isDoi) {
+        const doi = value.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
+        res = await fetch(`/api/references/doi?doi=${encodeURIComponent(doi)}`);
+      } else {
+        res = await fetch("/api/references/url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: value }),
+        });
+      }
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "DOI no encontrado");
+      if (!res.ok) throw new Error(json.error ?? "No se pudo leer el enlace");
       setDraft({
         ...draft,
         kind: json.kind ?? draft.kind,
@@ -82,11 +96,13 @@ export function ReferencesClient({
         year: json.year ? String(json.year) : draft.year,
         source: json.source || draft.source,
         url: json.url || draft.url,
-        doi: json.doi ?? draft.doi,
+        doi: json.doi || draft.doi,
       });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo consultar el DOI."
+        err instanceof Error
+          ? err.message
+          : "No se pudo extraer la información del enlace."
       );
     } finally {
       setFetchingDoi(false);
@@ -174,6 +190,7 @@ export function ReferencesClient({
 
   function openEdit(ref: BibReference) {
     setError(null);
+    setLookup("");
     setDraft({
       id: ref.id,
       kind: ref.kind,
@@ -215,6 +232,7 @@ export function ReferencesClient({
         <button
           onClick={() => {
             setError(null);
+            setLookup("");
             setDraft(emptyDraft());
           }}
           className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
@@ -333,20 +351,31 @@ export function ReferencesClient({
               {draft.id ? "Editar referencia" : "Nueva referencia"}
             </h3>
 
-            <div className="mt-4 flex gap-2">
-              <input
-                value={draft.doi}
-                onChange={(e) => setDraft({ ...draft, doi: e.target.value })}
-                placeholder="DOI (ej. 10.1000/xyz123)"
-                className={`${inputClasses} min-w-0 flex-1`}
-              />
-              <button
-                onClick={fillFromDoi}
-                disabled={fetchingDoi || !draft.doi.trim()}
-                className="shrink-0 rounded-xl border border-indigo-400/40 px-3 py-2 text-sm font-medium text-indigo-300 transition hover:bg-indigo-500/10 disabled:opacity-40"
-              >
-                {fetchingDoi ? "Buscando..." : "Autocompletar"}
-              </button>
+            <div className="mt-4 rounded-2xl border border-indigo-400/25 bg-indigo-500/[0.06] p-3">
+              <p className="mb-2 text-xs font-medium text-indigo-300">
+                Pega un enlace o DOI y Acadia completa la referencia
+              </p>
+              <div className="flex gap-2">
+                <input
+                  value={lookup}
+                  onChange={(e) => setLookup(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      autofill();
+                    }
+                  }}
+                  placeholder="https://... o 10.1000/xyz123"
+                  className={`${inputClasses} min-w-0 flex-1`}
+                />
+                <button
+                  onClick={autofill}
+                  disabled={fetchingDoi || !lookup.trim()}
+                  className="shrink-0 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+                >
+                  {fetchingDoi ? "Leyendo..." : "Autocompletar"}
+                </button>
+              </div>
             </div>
 
             <div className="mt-3 space-y-3">
@@ -396,12 +425,20 @@ export function ReferencesClient({
                 placeholder="Revista / editorial / sitio"
                 className={`${inputClasses} w-full`}
               />
-              <input
-                value={draft.url}
-                onChange={(e) => setDraft({ ...draft, url: e.target.value })}
-                placeholder="URL"
-                className={`${inputClasses} w-full`}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  value={draft.url}
+                  onChange={(e) => setDraft({ ...draft, url: e.target.value })}
+                  placeholder="URL"
+                  className={`${inputClasses} w-full`}
+                />
+                <input
+                  value={draft.doi}
+                  onChange={(e) => setDraft({ ...draft, doi: e.target.value })}
+                  placeholder="DOI (opcional)"
+                  className={`${inputClasses} w-full`}
+                />
+              </div>
               <select
                 value={draft.subjectId}
                 onChange={(e) =>
