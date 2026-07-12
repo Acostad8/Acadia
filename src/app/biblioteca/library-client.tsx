@@ -9,6 +9,7 @@ type PendingFile = {
   file: File;
   subjectId: string;
   docType: string;
+  analyzing?: boolean;
 };
 
 export function LibraryClient({
@@ -32,14 +33,42 @@ export function LibraryClient({
     [subjects]
   );
 
-  function pickFile(file: File) {
+  async function pickFile(file: File) {
     setError(null);
-    const suggested = suggestSubject(file.name, subjects);
-    setPending({
+    const byFilename = suggestSubject(file.name, subjects);
+    const initial: PendingFile = {
       file,
-      subjectId: suggested?.id ?? subjects[0]?.id ?? "",
+      subjectId: byFilename?.id ?? "",
       docType: suggestDocType(file.name),
-    });
+    };
+
+    // Sin match por nombre y es PDF: analizar contenido en el servidor
+    if (!byFilename && file.type === "application/pdf") {
+      setPending({ ...initial, analyzing: true });
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/documents/suggest", {
+          method: "POST",
+          body: form,
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setPending({
+            file,
+            subjectId: json.subject_id ?? "",
+            docType: json.doc_type ?? initial.docType,
+          });
+          return;
+        }
+      } catch {
+        // Análisis falló: el usuario selecciona manualmente
+      }
+      setPending(initial);
+      return;
+    }
+
+    setPending(initial);
   }
 
   async function upload() {
@@ -124,8 +153,12 @@ export function LibraryClient({
             {pending.file.name}
           </p>
           <p className="mt-0.5 text-xs text-zinc-500">
-            {(pending.file.size / 1024 / 1024).toFixed(2)} MB · Confirma la
-            clasificación sugerida
+            {(pending.file.size / 1024 / 1024).toFixed(2)} MB ·{" "}
+            {pending.analyzing
+              ? "Analizando contenido del documento..."
+              : pending.subjectId
+                ? "Confirma la clasificación sugerida"
+                : "No se detectó la materia — selecciónala"}
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <select
@@ -133,8 +166,15 @@ export function LibraryClient({
               onChange={(e) =>
                 setPending({ ...pending, subjectId: e.target.value })
               }
-              className="rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none focus:border-indigo-400/60"
+              className={`rounded-xl border px-3 py-2 text-sm text-white outline-none focus:border-indigo-400/60 ${
+                pending.subjectId
+                  ? "border-white/10 bg-zinc-900"
+                  : "border-amber-500/40 bg-zinc-900"
+              }`}
             >
+              <option value="" disabled>
+                Selecciona materia...
+              </option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -164,7 +204,7 @@ export function LibraryClient({
               </button>
               <button
                 onClick={upload}
-                disabled={busy || !pending.subjectId || !driveReady}
+                disabled={busy || !pending.subjectId || !driveReady || pending.analyzing}
                 className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 disabled:opacity-50"
               >
                 {busy ? "Subiendo a Drive..." : "Subir a Drive"}
