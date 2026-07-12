@@ -141,6 +141,29 @@ export type BibReference = {
   created_at: string;
 };
 
+export const PROJECT_STATUSES = [
+  "idea",
+  "en_desarrollo",
+  "terminado",
+] as const;
+
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+export type Project = {
+  id: string;
+  user_id: string;
+  subject_id: string | null;
+  semester_id: string | null;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  technologies: string[];
+  members: string | null;
+  repo_url: string | null;
+  demo_url: string | null;
+  created_at: string;
+};
+
 export type ParsedSchedule = {
   semester: { name: string; label: string };
   subjects: ParsedSubject[];
