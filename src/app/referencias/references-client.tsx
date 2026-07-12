@@ -5,7 +5,12 @@ import { createClient } from "@/lib/supabase/client";
 import { CITATION_STYLES, formatCitation } from "@/lib/citations";
 import type { CitationStyle } from "@/lib/citations";
 import { REFERENCE_KINDS } from "@/lib/types";
-import type { BibReference, ReferenceKind, Subject } from "@/lib/types";
+import type {
+  BibReference,
+  ReferenceGroup,
+  ReferenceKind,
+  Subject,
+} from "@/lib/types";
 
 const KIND_LABELS: Record<ReferenceKind, string> = {
   articulo: "Artículo",
@@ -24,9 +29,10 @@ type Draft = {
   url: string;
   doi: string;
   subjectId: string;
+  groupId: string;
 };
 
-function emptyDraft(): Draft {
+function emptyDraft(groupId = ""): Draft {
   return {
     id: null,
     kind: "articulo",
@@ -37,6 +43,7 @@ function emptyDraft(): Draft {
     url: "",
     doi: "",
     subjectId: "",
+    groupId,
   };
 }
 
@@ -44,13 +51,23 @@ export function ReferencesClient({
   userId,
   subjects,
   initialReferences,
+  initialGroups,
 }: {
   userId: string;
   subjects: Subject[];
   initialReferences: BibReference[];
+  initialGroups: ReferenceGroup[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [references, setReferences] = useState(initialReferences);
+  const [groups, setGroups] = useState(initialGroups);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [groupDraft, setGroupDraft] = useState<{
+    id: string | null;
+    name: string;
+  } | null>(null);
+  const [biblioOpen, setBiblioOpen] = useState(false);
+  const [copiedAll, setCopiedAll] = useState(false);
   const [style, setStyle] = useState<CitationStyle>("APA 7");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
@@ -135,6 +152,7 @@ export function ReferencesClient({
       url: draft.url.trim() || null,
       doi: draft.doi.trim().replace(/^https?:\/\/doi\.org\//i, "") || null,
       subject_id: draft.subjectId || null,
+      group_id: draft.groupId || null,
     };
     if (draft.id) {
       const { data, error: err } = await supabase
@@ -201,18 +219,187 @@ export function ReferencesClient({
       url: ref.url ?? "",
       doi: ref.doi ?? "",
       subjectId: ref.subject_id ?? "",
+      groupId: ref.group_id ?? "",
     });
   }
 
-  const visible = filter
-    ? references.filter((r) => r.subject_id === filter)
+  async function saveGroup() {
+    if (!groupDraft) return;
+    const name = groupDraft.name.trim();
+    if (!name) {
+      setError("El nombre del grupo es obligatorio.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    if (groupDraft.id) {
+      const { data, error: err } = await supabase
+        .from("reference_groups")
+        .update({ name })
+        .eq("id", groupDraft.id)
+        .select()
+        .single();
+      setBusy(false);
+      if (err) {
+        setError("No se pudo renombrar el grupo.");
+        return;
+      }
+      setGroups((prev) =>
+        prev.map((g) => (g.id === groupDraft.id ? (data as ReferenceGroup) : g))
+      );
+    } else {
+      const { data, error: err } = await supabase
+        .from("reference_groups")
+        .insert({ name, user_id: userId })
+        .select()
+        .single();
+      setBusy(false);
+      if (err) {
+        setError("No se pudo crear el grupo.");
+        return;
+      }
+      const created = data as ReferenceGroup;
+      setGroups((prev) =>
+        [...prev, created].sort((a, b) => a.name.localeCompare(b.name, "es"))
+      );
+      setActiveGroupId(created.id);
+    }
+    setGroupDraft(null);
+  }
+
+  async function deleteGroup(id: string) {
+    setBusy(true);
+    setError(null);
+    const { error: err } = await supabase
+      .from("reference_groups")
+      .delete()
+      .eq("id", id);
+    setBusy(false);
+    if (err) {
+      setError("No se pudo eliminar el grupo.");
+      return;
+    }
+    setGroups((prev) => prev.filter((g) => g.id !== id));
+    // Las referencias quedan sin grupo (FK on delete set null)
+    setReferences((prev) =>
+      prev.map((r) => (r.group_id === id ? { ...r, group_id: null } : r))
+    );
+    if (activeGroupId === id) setActiveGroupId(null);
+    setGroupDraft(null);
+  }
+
+  const inGroup = activeGroupId
+    ? references.filter((r) => r.group_id === activeGroupId)
     : references;
+  const visible = filter
+    ? inGroup.filter((r) => r.subject_id === filter)
+    : inGroup;
+
+  const bibliography = useMemo(
+    () =>
+      [...inGroup]
+        .map((ref) => ({ ref, text: formatCitation(ref, style) }))
+        .sort((a, b) =>
+          a.text.localeCompare(b.text, "es", { sensitivity: "base" })
+        ),
+    [inGroup, style]
+  );
+
+  async function copyBibliography() {
+    const plain = bibliography.map((b) => b.text).join("\n\n");
+    // HTML con sangría francesa: al pegar en Word/Docs conserva el formato
+    const htmlItems = bibliography
+      .map(
+        (b) =>
+          `<p style="margin:0 0 12pt 0.5in;text-indent:-0.5in;line-height:2;">${b.text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")}</p>`
+      )
+      .join("");
+    try {
+      if (typeof ClipboardItem !== "undefined") {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([htmlItems], { type: "text/html" }),
+            "text/plain": new Blob([plain], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(plain);
+      }
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    } catch {
+      await navigator.clipboard.writeText(plain);
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    }
+  }
+
+  const activeGroup = groups.find((g) => g.id === activeGroupId) ?? null;
 
   const inputClasses =
     "rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-indigo-400/60";
 
   return (
     <div className="mt-8 space-y-6">
+      {/* Grupos / proyectos */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setActiveGroupId(null)}
+          className={`rounded-xl px-3.5 py-2 text-sm font-medium transition ${
+            activeGroupId === null
+              ? "bg-white text-zinc-900"
+              : "border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white"
+          }`}
+        >
+          Todas
+          <span className="ml-1.5 text-xs opacity-60">
+            {references.length}
+          </span>
+        </button>
+        {groups.map((g) => {
+          const count = references.filter((r) => r.group_id === g.id).length;
+          return (
+            <button
+              key={g.id}
+              onClick={() => setActiveGroupId(g.id)}
+              onDoubleClick={() => setGroupDraft({ id: g.id, name: g.name })}
+              title="Doble clic para renombrar o eliminar"
+              className={`rounded-xl px-3.5 py-2 text-sm font-medium transition ${
+                activeGroupId === g.id
+                  ? "bg-white text-zinc-900"
+                  : "border border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white"
+              }`}
+            >
+              {g.name}
+              <span className="ml-1.5 text-xs opacity-60">{count}</span>
+            </button>
+          );
+        })}
+        <button
+          onClick={() => {
+            setError(null);
+            setGroupDraft({ id: null, name: "" });
+          }}
+          className="rounded-xl border border-dashed border-white/20 px-3.5 py-2 text-sm text-zinc-500 transition hover:border-indigo-400/50 hover:text-white"
+        >
+          + Grupo
+        </button>
+        {activeGroup && (
+          <button
+            onClick={() =>
+              setGroupDraft({ id: activeGroup.id, name: activeGroup.name })
+            }
+            className="rounded-xl px-2.5 py-2 text-sm text-zinc-500 transition hover:bg-white/5 hover:text-white"
+            title="Renombrar o eliminar este grupo"
+          >
+            ⚙
+          </button>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex overflow-hidden rounded-xl border border-white/10">
           {CITATION_STYLES.map((s) => (
@@ -229,16 +416,25 @@ export function ReferencesClient({
             </button>
           ))}
         </div>
-        <button
-          onClick={() => {
-            setError(null);
-            setLookup("");
-            setDraft(emptyDraft());
-          }}
-          className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
-        >
-          + Nueva referencia
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setBiblioOpen(true)}
+            disabled={inGroup.length === 0}
+            className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-indigo-400/50 hover:text-white disabled:opacity-40"
+          >
+            Bibliografía ({inGroup.length})
+          </button>
+          <button
+            onClick={() => {
+              setError(null);
+              setLookup("");
+              setDraft(emptyDraft(activeGroupId ?? ""));
+            }}
+            className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+          >
+            + Nueva referencia
+          </button>
+        </div>
       </div>
 
       {subjects.length > 0 && (
@@ -439,20 +635,36 @@ export function ReferencesClient({
                   className={`${inputClasses} w-full`}
                 />
               </div>
-              <select
-                value={draft.subjectId}
-                onChange={(e) =>
-                  setDraft({ ...draft, subjectId: e.target.value })
-                }
-                className={`${inputClasses} w-full`}
-              >
-                <option value="">Sin materia</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 gap-3">
+                <select
+                  value={draft.subjectId}
+                  onChange={(e) =>
+                    setDraft({ ...draft, subjectId: e.target.value })
+                  }
+                  className={`${inputClasses} w-full`}
+                >
+                  <option value="">Sin materia</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={draft.groupId}
+                  onChange={(e) =>
+                    setDraft({ ...draft, groupId: e.target.value })
+                  }
+                  className={`${inputClasses} w-full`}
+                >
+                  <option value="">Sin grupo</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Vista previa en vivo de la cita */}
@@ -484,6 +696,7 @@ export function ReferencesClient({
                       id: "preview",
                       user_id: "",
                       subject_id: null,
+                      group_id: null,
                       kind: draft.kind,
                       title: draft.title.trim(),
                       authors: draft.authors.trim() || null,
@@ -536,6 +749,121 @@ export function ReferencesClient({
                   {busy ? "Guardando..." : "Guardar"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal crear/renombrar/eliminar grupo */}
+      {groupDraft && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => !busy && setGroupDraft(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">
+              {groupDraft.id ? "Editar grupo" : "Nuevo grupo"}
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Agrupa referencias por proyecto, trabajo o investigación.
+            </p>
+            <input
+              value={groupDraft.name}
+              onChange={(e) =>
+                setGroupDraft({ ...groupDraft, name: e.target.value })
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveGroup();
+              }}
+              placeholder="Nombre (ej. Proyecto final Redes)"
+              autoFocus
+              className={`${inputClasses} mt-4 w-full`}
+            />
+            {error && (
+              <p className="mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+                {error}
+              </p>
+            )}
+            <div className="mt-5 flex items-center gap-2">
+              {groupDraft.id && (
+                <button
+                  onClick={() => deleteGroup(groupDraft.id as string)}
+                  disabled={busy}
+                  className="rounded-xl border border-red-500/30 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/10 disabled:opacity-50"
+                  title="Las referencias no se borran; quedan sin grupo"
+                >
+                  Eliminar grupo
+                </button>
+              )}
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={() => setGroupDraft(null)}
+                  disabled={busy}
+                  className="rounded-xl px-4 py-2 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveGroup}
+                  disabled={busy}
+                  className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110 disabled:opacity-50"
+                >
+                  {busy ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal bibliografía formateada */}
+      {biblioOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setBiblioOpen(false)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-white/5 p-6 pb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white">
+                  Bibliografía · {style}
+                </h3>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {activeGroup ? activeGroup.name : "Todas las referencias"} ·{" "}
+                  {bibliography.length} referencia
+                  {bibliography.length === 1 ? "" : "s"} · orden alfabético
+                  {style === "APA 7" ? " · sangría francesa" : ""}
+                </p>
+              </div>
+              <button
+                onClick={copyBibliography}
+                className="shrink-0 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+              >
+                {copiedAll ? "¡Copiada!" : "Copiar todo"}
+              </button>
+            </div>
+            <div className="overflow-y-auto p-6 pt-4">
+              <div className="space-y-4">
+                {bibliography.map(({ ref, text }) => (
+                  <p
+                    key={ref.id}
+                    className="text-sm leading-7 text-zinc-200"
+                    style={{ paddingLeft: "2rem", textIndent: "-2rem" }}
+                  >
+                    {text}
+                  </p>
+                ))}
+              </div>
+              <p className="mt-6 text-xs text-zinc-600">
+                «Copiar todo» copia con formato: al pegar en Word o Google Docs
+                se conserva la sangría francesa y el interlineado doble.
+              </p>
             </div>
           </div>
         </div>

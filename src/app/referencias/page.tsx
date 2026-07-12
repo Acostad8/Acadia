@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { BibReference, Subject } from "@/lib/types";
+import type { BibReference, ReferenceGroup, Subject } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { ReferencesClient } from "./references-client";
 
@@ -18,17 +18,19 @@ export default async function ReferenciasPage() {
     .maybeSingle();
   if (!semester) redirect("/onboarding");
 
-  const [{ data: subjects }, { data: references }] = await Promise.all([
-    supabase
-      .from("subjects")
-      .select()
-      .eq("semester_id", semester.id)
-      .order("name"),
-    supabase
-      .from("bib_references")
-      .select()
-      .order("created_at", { ascending: false }),
-  ]);
+  const [{ data: subjects }, { data: references }, { data: groups }] =
+    await Promise.all([
+      supabase
+        .from("subjects")
+        .select()
+        .eq("semester_id", semester.id)
+        .order("name"),
+      supabase
+        .from("bib_references")
+        .select()
+        .order("created_at", { ascending: false }),
+      supabase.from("reference_groups").select().order("name"),
+    ]);
 
   return (
     <>
@@ -47,6 +49,7 @@ export default async function ReferenciasPage() {
           userId={user.id}
           subjects={(subjects ?? []) as Subject[]}
           initialReferences={(references ?? []) as BibReference[]}
+          initialGroups={(groups ?? []) as ReferenceGroup[]}
         />
       </main>
     </>

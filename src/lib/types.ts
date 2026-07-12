@@ -131,6 +131,7 @@ export type BibReference = {
   id: string;
   user_id: string;
   subject_id: string | null;
+  group_id: string | null;
   kind: ReferenceKind;
   title: string;
   authors: string | null;
@@ -138,6 +139,13 @@ export type BibReference = {
   source: string | null;
   url: string | null;
   doi: string | null;
+  created_at: string;
+};
+
+export type ReferenceGroup = {
+  id: string;
+  user_id: string;
+  name: string;
   created_at: string;
 };
 
