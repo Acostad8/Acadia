@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
         name: file.name,
         doc_type: docType,
         drive_file_id: uploaded.id,
+        drive_folder_id: typeFolderId,
         drive_web_link: uploaded.webViewLink,
         mime_type: file.type || null,
         size_bytes: file.size,

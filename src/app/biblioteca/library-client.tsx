@@ -289,16 +289,29 @@ export function LibraryClient({
                     })}
                   </p>
                 </div>
-                {d.drive_web_link && (
-                  <a
-                    href={d.drive_web_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
-                  >
-                    Abrir en Drive
-                  </a>
-                )}
+                <div className="flex shrink-0 gap-2">
+                  {d.drive_web_link && (
+                    <a
+                      href={d.drive_web_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+                    >
+                      Abrir en Drive
+                    </a>
+                  )}
+                  {d.drive_folder_id && (
+                    <a
+                      href={`https://drive.google.com/drive/folders/${d.drive_folder_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Abrir la carpeta que contiene este archivo"
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+                    >
+                      Abrir carpeta
+                    </a>
+                  )}
+                </div>
               </li>
             );
           })}

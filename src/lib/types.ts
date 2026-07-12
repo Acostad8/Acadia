@@ -45,6 +45,7 @@ export type Document = {
   name: string;
   doc_type: string | null;
   drive_file_id: string | null;
+  drive_folder_id: string | null;
   drive_web_link: string | null;
   mime_type: string | null;
   size_bytes: number | null;
