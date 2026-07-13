@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { PROJECT_STATUSES } from "@/lib/types";
 import type { Project, ProjectStatus, Subject } from "@/lib/types";
+import { PortfolioExportDialog } from "./export-dialog";
 
 const STATUS_META: Record<ProjectStatus, { label: string; classes: string }> =
   {
@@ -71,6 +72,7 @@ export function PortfolioClient({
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const subjectById = useMemo(
     () => new Map(subjects.map((s) => [s.id, s])),
@@ -204,6 +206,12 @@ export function PortfolioClient({
           ))}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setExportOpen(true)}
+            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+          >
+            Exportar PDF
+          </button>
           <Link
             href="/portafolio/publico"
             className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
@@ -296,6 +304,10 @@ export function PortfolioClient({
             );
           })}
         </div>
+      )}
+
+      {exportOpen && (
+        <PortfolioExportDialog onClose={() => setExportOpen(false)} />
       )}
 
       {/* Modal crear/editar */}
