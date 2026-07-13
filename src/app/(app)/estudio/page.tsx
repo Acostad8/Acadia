@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { StudySession, Subject } from "@/lib/types";
+import type { Evaluation, StudySession, Subject } from "@/lib/types";
 import { StudyClient } from "./study-client";
 
 export default async function EstudioPage() {
@@ -18,7 +18,7 @@ export default async function EstudioPage() {
   if (!semester) redirect("/onboarding");
 
   const since = new Date();
-  since.setDate(since.getDate() - 28);
+  since.setDate(since.getDate() - 84); // 12 semanas para heatmap
 
   const [{ data: subjects }, { data: sessions }] = await Promise.all([
     supabase
@@ -32,6 +32,11 @@ export default async function EstudioPage() {
       .gte("started_at", since.toISOString())
       .order("started_at", { ascending: false }),
   ]);
+
+  const subjectIds = (subjects ?? []).map((s) => s.id);
+  const { data: evaluations } = subjectIds.length
+    ? await supabase.from("evaluations").select().in("subject_id", subjectIds)
+    : { data: [] as Evaluation[] };
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10">
@@ -48,6 +53,7 @@ export default async function EstudioPage() {
           userId={user.id}
           subjects={(subjects ?? []) as Subject[]}
           initialSessions={(sessions ?? []) as StudySession[]}
+          evaluations={(evaluations ?? []) as Evaluation[]}
         />
       </main>
   );
