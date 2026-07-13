@@ -36,18 +36,6 @@ type Draft = {
   faviconUrl: string;
 };
 
-function emptyDraft(): Draft {
-  return {
-    id: null,
-    url: "",
-    title: "",
-    description: "",
-    kind: "articulo",
-    subjectId: "",
-    tagsInput: "",
-    faviconUrl: "",
-  };
-}
 
 const inputClasses =
   "rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-indigo-400/60";

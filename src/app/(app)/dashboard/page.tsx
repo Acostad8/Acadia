@@ -11,8 +11,10 @@ import type {
   ScheduleBlock,
   Subject,
 } from "@/lib/types";
+import { normalizeLayout, studyLast7Days, type StudyDay } from "@/lib/widgets";
 import { WeeklySchedule } from "./weekly-schedule";
 import { NextClassCountdown } from "./live-clock";
+import { DashboardGrid } from "./dashboard-grid";
 
 const DriveBanner = dynamic(() =>
   import("./drive-banner").then((m) => m.DriveBanner)
@@ -62,21 +64,49 @@ export default async function DashboardPage() {
 
   const since60 = new Date();
   since60.setDate(since60.getDate() - 60);
-  const [{ data: upcomingEvents }, { data: recentSessions }] = await Promise.all([
+  const [
+    { data: upcomingEvents },
+    { data: recentSessions },
+    { data: prefs },
+  ] = await Promise.all([
     supabase
       .from("events")
       .select()
       .eq("semester_id", semester.id)
       .eq("completed", false)
       .order("due_at")
-      .limit(5),
+      .limit(20),
     supabase
       .from("study_sessions")
-      .select("started_at")
+      .select("started_at, duration_minutes")
       .gte("started_at", since60.toISOString()),
+    supabase
+      .from("user_preferences")
+      .select("dashboard_layout, focus_mode")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
-  const streak = computeStreak((recentSessions ?? []) as { started_at: string }[]);
+  const streak = computeStreak(
+    (recentSessions ?? []) as { started_at: string }[]
+  );
+
+  const nowForStudy = new Date();
+  const studyMinutesByDay = new Map<string, number>();
+  for (const s of recentSessions ?? []) {
+    const key = new Date(s.started_at).toISOString().slice(0, 10);
+    studyMinutesByDay.set(
+      key,
+      (studyMinutesByDay.get(key) ?? 0) + (s.duration_minutes ?? 0)
+    );
+  }
+  const studyByDay: StudyDay[] = studyLast7Days(
+    Array.from(studyMinutesByDay, ([date, minutes]) => ({ date, minutes })),
+    nowForStudy
+  );
+
+  const layout = normalizeLayout(prefs?.dashboard_layout);
+  const focusMode = Boolean(prefs?.focus_mode);
 
   const summaryBySubject = new Map(
     subjectIds.map((sid) => [
@@ -272,6 +302,20 @@ export default async function DashboardPage() {
           </section>
         )}
 
+        <DashboardGrid
+          payload={{
+            subjects: (subjects ?? []) as Subject[],
+            events: (upcomingEvents ?? []) as CalendarEvent[],
+            evaluations: (evaluations ?? []) as Evaluation[],
+            blocks: (blocks ?? []) as ScheduleBlock[],
+            studyByDay,
+            streak,
+            now: now.toISOString(),
+          }}
+          initialLayout={layout}
+          initialFocusMode={focusMode}
+        />
+
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {[
             {
@@ -461,58 +505,6 @@ export default async function DashboardPage() {
                 );
               })}
             </div>
-          </section>
-        )}
-
-        {(upcomingEvents ?? []).length > 0 && (
-          <section className="mt-10">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                Próximas entregas
-              </h2>
-              <Link
-                href="/calendario"
-                className="text-xs font-medium text-indigo-400 transition hover:text-indigo-300"
-              >
-                Ver calendario →
-              </Link>
-            </div>
-            <ul className="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-              {((upcomingEvents ?? []) as CalendarEvent[]).map((ev) => {
-                const subject = ev.subject_id
-                  ? (subjects ?? []).find((s) => s.id === ev.subject_id)
-                  : undefined;
-                const rel = relativeDue(ev.due_at);
-                return (
-                  <li
-                    key={ev.id}
-                    className="flex items-center gap-4 px-5 py-3 transition hover:bg-white/[0.03]"
-                  >
-                    <span
-                      className="h-8 w-1 shrink-0 rounded-full"
-                      style={{ backgroundColor: subject?.color ?? "#3f3f46" }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-white">
-                        {ev.title}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {subject?.name ?? "General"} · {ev.type}
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${
-                        rel.urgent
-                          ? "bg-amber-500/10 text-amber-300"
-                          : "text-zinc-500"
-                      }`}
-                    >
-                      {rel.label}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
           </section>
         )}
 

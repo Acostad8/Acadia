@@ -55,6 +55,16 @@ const LINKS: LinkDef[] = [
     ),
   },
   {
+    href: "/horario",
+    label: "Horario",
+    icon: (
+      <I>
+        <rect x="3" y="4" width="18" height="17" rx="2" />
+        <path d="M3 9h18M8 2v4m8-4v4M8 13h3m5 0h.01M8 17h3m5 0h.01" />
+      </I>
+    ),
+  },
+  {
     href: "/calendario",
     label: "Calendario",
     icon: (
@@ -217,13 +227,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${sidebarWidth}`}
       >
-        <div className="flex items-center justify-between border-b border-white/5 px-3 py-3">
+        <div
+          className={`flex items-center border-b border-white/5 py-3 ${
+            collapsed ? "justify-center gap-1 px-1" : "justify-between px-3"
+          }`}
+        >
           <Link
             href="/dashboard"
-            className="flex min-w-0 items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition hover:bg-white/5"
+            className={`flex min-w-0 items-center gap-2 rounded-lg py-1 transition hover:bg-white/5 ${
+              collapsed ? "px-0.5" : "pl-1 pr-2"
+            }`}
             title="Acadia"
           >
-            <LogoMark size={26} />
+            <LogoMark size={collapsed ? 24 : 26} />
             {!collapsed && (
               <span className="truncate bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-sm font-bold text-transparent">
                 Acadia
@@ -233,17 +249,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-            className="hidden shrink-0 rounded-md p-1 text-zinc-500 transition hover:bg-white/5 hover:text-white md:inline-flex"
+            className="hidden shrink-0 items-center justify-center p-0.5 text-zinc-500 transition hover:text-white md:inline-flex"
           >
             <svg
               viewBox="0 0 24 24"
               fill="none"
-              className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`}
+              className={`h-5 w-5 transition-transform ${collapsed ? "rotate-180" : ""}`}
             >
               <path
                 d="m15 18-6-6 6-6"
                 stroke="currentColor"
-                strokeWidth="1.8"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />

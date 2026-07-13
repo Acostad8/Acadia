@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   formatGrade,
+  neededForTarget,
   summarizeGrades,
   type SubjectStatus,
 } from "@/lib/grades";
@@ -48,8 +49,14 @@ export function EvaluationsClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [simGrade, setSimGrade] = useState(3.5);
+  const [targetInput, setTargetInput] = useState("3.0");
 
   const summary = useMemo(() => summarizeGrades(evaluations), [evaluations]);
+  const targetPlan = useMemo(() => {
+    const raw = Number(targetInput.replace(",", "."));
+    if (!Number.isFinite(raw)) return null;
+    return neededForTarget(evaluations, raw);
+  }, [evaluations, targetInput]);
   const totalWeight = useMemo(
     () => evaluations.reduce((s, e) => s + e.weight_percent, 0),
     [evaluations]
@@ -400,6 +407,93 @@ export function EvaluationsClient({
                 {formatGrade(summary.accumulated)}
               </span>
             </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
+          <p className="mb-1 text-xs font-medium text-zinc-400">
+            ¿Qué nota necesito para cerrar en...?
+          </p>
+          <p className="text-xs text-zinc-600">
+            Escribe la nota final que quieres alcanzar (0.0 – 5.0).
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              max={5}
+              step={0.1}
+              inputMode="decimal"
+              value={targetInput}
+              onChange={(e) => setTargetInput(e.target.value)}
+              aria-label="Nota final deseada"
+              className={`${inputClasses} w-20 text-center`}
+            />
+            <span className="text-xs text-zinc-500">nota final</span>
+          </div>
+          {targetPlan && (
+            <div className="mt-4 space-y-2 text-sm">
+              {targetPlan.achieved ? (
+                <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-300">
+                  Ya asegurada con lo acumulado ({formatGrade(summary.accumulated)}).
+                </p>
+              ) : targetPlan.unreachable ? (
+                <p className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+                  Inalcanzable: te faltan{" "}
+                  <span className="font-semibold">
+                    {formatGrade(targetPlan.pointsMissing)}
+                  </span>{" "}
+                  puntos y solo queda {targetPlan.remainingPercent}% por
+                  evaluar.
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-zinc-400">
+                      Necesitas en el {targetPlan.remainingPercent}% restante
+                    </span>
+                    <span
+                      className={`text-2xl font-bold tabular-nums ${
+                        (targetPlan.needed ?? 0) > 4.5
+                          ? "text-amber-400"
+                          : "text-emerald-400"
+                      }`}
+                    >
+                      {formatGrade(targetPlan.needed as number)}
+                    </span>
+                  </div>
+                  {targetPlan.perPending.length > 0 && (
+                    <div>
+                      <p className="mt-2 mb-1 text-[11px] uppercase tracking-wider text-zinc-500">
+                        Distribución sugerida
+                      </p>
+                      <ul className="divide-y divide-white/5 rounded-lg border border-white/10 bg-white/[0.02]">
+                        {targetPlan.perPending.map((p) => (
+                          <li
+                            key={p.name}
+                            className="flex items-center justify-between px-3 py-2 text-xs"
+                          >
+                            <span className="min-w-0 truncate text-zinc-400">
+                              {p.name}{" "}
+                              <span className="text-zinc-600">
+                                · {p.weight_percent}%
+                              </span>
+                            </span>
+                            <span className="tabular-nums font-semibold text-white">
+                              {formatGrade(p.needed)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-[11px] text-zinc-600">
+                        Misma nota en cada pendiente. Si sacas más en una,
+                        puedes bajar en otra proporcionalmente al peso.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
 
