@@ -44,7 +44,7 @@ export default async function DashboardPage() {
     .eq("is_current", true)
     .maybeSingle();
 
-  if (!semester) redirect("/onboarding");
+  if (!semester) redirect("/onboarding/schedule-import");
 
   const { data: subjects } = await supabase
     .from("subjects")
