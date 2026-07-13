@@ -84,6 +84,22 @@ export function DashboardGrid({ payload, initialLayout, initialFocusMode }: Prop
     });
   }
 
+  useEffect(() => {
+    function handler() {
+      setFocusMode((prev) => {
+        const next = !prev;
+        fetch("/api/user-preferences", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ focus_mode: next }),
+        }).catch(() => {});
+        return next;
+      });
+    }
+    window.addEventListener("acadia:toggle-focus", handler);
+    return () => window.removeEventListener("acadia:toggle-focus", handler);
+  }, []);
+
   async function toggleFocus() {
     const next = !focusMode;
     setFocusMode(next);

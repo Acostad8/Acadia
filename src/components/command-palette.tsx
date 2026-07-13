@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { parseCommand, type ResolvedCommand } from "@/lib/palette-commands";
 
 type Item = {
   id: string;
@@ -11,6 +12,7 @@ type Item = {
   subtitle?: string;
   href: string;
   keywords?: string;
+  onSelect?: () => void;
 };
 
 const ROUTE_ITEMS: Item[] = [
@@ -32,6 +34,33 @@ const ROUTE_ITEMS: Item[] = [
     href: "/portafolio/publico",
   },
 ];
+
+function resolvedToItem(
+  cmd: ResolvedCommand,
+  idx: number,
+  router: ReturnType<typeof useRouter>,
+  close: () => void
+): Item {
+  return {
+    id: `cmd-${cmd.kind}-${idx}`,
+    section: "Comandos",
+    title: cmd.label,
+    subtitle: cmd.hint,
+    href: "#cmd",
+    onSelect: () => {
+      const res = cmd.execute();
+      close();
+      if ("customEvent" in res) {
+        window.dispatchEvent(
+          new CustomEvent(res.customEvent, { detail: res.detail })
+        );
+        if ("href" in res && res.href) router.push(res.href);
+      } else if (res.href) {
+        router.push(res.href);
+      }
+    },
+  };
+}
 
 function normalize(s: string): string {
   return s
@@ -62,6 +91,10 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const [dynamicItems, setDynamicItems] = useState<Item[]>([]);
+  const [subjectCtx, setSubjectCtx] = useState<
+    { id: string; name: string; color: string | null }[]
+  >([]);
+  const [pdfMatches, setPdfMatches] = useState<Item[]>([]);
   const [loaded, setLoaded] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
@@ -95,15 +128,19 @@ export function CommandPalette() {
           .limit(60),
       ]);
 
+    const ctx: { id: string; name: string; color: string | null }[] = [];
     for (const s of subjectsRes.data ?? []) {
+      const name = s.name as string;
+      ctx.push({ id: s.id as string, name, color: null });
       items.push({
         id: `s-${s.id}`,
         section: "Materias",
-        title: s.name as string,
+        title: name,
         subtitle: [s.code, s.group_name].filter(Boolean).join(" · "),
         href: `/materias/${s.id}`,
       });
     }
+    setSubjectCtx(ctx);
     for (const d of docsRes.data ?? []) {
       items.push({
         id: `d-${d.id}`,
@@ -181,12 +218,65 @@ export function CommandPalette() {
     if (open) {
       setQuery("");
       setSelected(0);
+      setPdfMatches([]);
       void loadDynamic();
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open, loadDynamic]);
 
+  const isCommandMode = query.trimStart().startsWith(">");
+
+  const commandItems: Item[] = useMemo(() => {
+    if (!isCommandMode) return [];
+    const cmds = parseCommand(query, { subjects: subjectCtx });
+    return cmds.map((cmd, idx) => resolvedToItem(cmd, idx, router, () => setOpen(false)));
+  }, [isCommandMode, query, subjectCtx, router]);
+
+  useEffect(() => {
+    if (isCommandMode) {
+      setPdfMatches([]);
+      return;
+    }
+    const term = query.trim();
+    if (term.length < 3) {
+      setPdfMatches([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      const { data, error } = await supabase.rpc("search_documents", {
+        q: term,
+        match_limit: 10,
+      });
+      if (cancelled || error || !data) return;
+      const items: Item[] = (data as unknown[]).map((row) => {
+        const record = row as {
+          id: string;
+          name: string;
+          snippet: string | null;
+          drive_web_link: string | null;
+          subject_id: string | null;
+        };
+        return {
+          id: `pdf-${record.id}`,
+          section: "En contenido de PDFs",
+          title: record.name,
+          subtitle: record.snippet
+            ? record.snippet.replace(/<<|>>/g, "**")
+            : undefined,
+          href: record.drive_web_link ?? "/biblioteca",
+        };
+      });
+      setPdfMatches(items);
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query, isCommandMode, supabase]);
+
   const results = useMemo(() => {
+    if (isCommandMode) return commandItems;
     const tokens = normalize(query.trim())
       .split(/\s+/)
       .filter(Boolean);
@@ -195,9 +285,9 @@ export function CommandPalette() {
       .map((item) => ({ item, s: score(item, tokens) }))
       .filter((x) => x.s > 0)
       .sort((a, b) => b.s - a.s)
-      .slice(0, 50);
-    return scored.map((x) => x.item);
-  }, [query, dynamicItems]);
+      .slice(0, 40);
+    return [...scored.map((x) => x.item), ...pdfMatches];
+  }, [isCommandMode, commandItems, query, dynamicItems, pdfMatches]);
 
   useEffect(() => {
     setSelected(0);
@@ -212,6 +302,10 @@ export function CommandPalette() {
 
   function go(item: Item) {
     setOpen(false);
+    if (item.onSelect) {
+      item.onSelect();
+      return;
+    }
     if (/^https?:\/\//.test(item.href)) {
       window.open(item.href, "_blank", "noopener,noreferrer");
     } else {
@@ -248,7 +342,7 @@ export function CommandPalette() {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar materias, documentos, entregas, enlaces..."
+            placeholder="Buscar o teclear > para comandos (ej: > evento Parcial mañana 8pm)"
             className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {

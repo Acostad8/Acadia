@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { relativeDue } from "@/lib/dates";
 import { EVENT_TYPES } from "@/lib/types";
@@ -71,6 +72,8 @@ export function CalendarClient({
   initialEvents: CalendarEvent[];
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [events, setEvents] = useState(initialEvents);
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -83,6 +86,28 @@ export function CalendarClient({
     () => new Map(subjects.map((s) => [s.id, s])),
     [subjects]
   );
+
+  useEffect(() => {
+    if (searchParams.get("draft") !== "1") return;
+    const title = searchParams.get("title") ?? "";
+    const dueIso = searchParams.get("due");
+    const rawType = searchParams.get("type") ?? "tarea";
+    const subject = searchParams.get("subject") ?? "";
+    const due = dueIso ? new Date(dueIso) : new Date();
+    const type = (EVENT_TYPES as readonly string[]).includes(rawType)
+      ? (rawType as EventType)
+      : "tarea";
+    setDraft({
+      id: null,
+      title,
+      type,
+      subjectId: subject,
+      date: toDateKey(due),
+      time: `${String(due.getHours()).padStart(2, "0")}:${String(due.getMinutes()).padStart(2, "0")}`,
+      notes: "",
+    });
+    router.replace("/calendario");
+  }, [searchParams, router]);
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();

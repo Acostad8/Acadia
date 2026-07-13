@@ -19,6 +19,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.2",
+    "chrono-node": "^2.10.0",
     "googleapis": "^173.0.0",
     "next": "16.2.10",
     "pdfjs-dist": "^6.1.200",
