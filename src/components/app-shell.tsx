@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { LogoMark } from "@/components/logo";
 import { CommandPalette } from "@/components/command-palette";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 type LinkDef = {
   href: string;
@@ -177,6 +178,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker
+      .getRegistration("/sw.js")
+      .then((reg) => {
+        if (!reg) return navigator.serviceWorker.register("/sw.js");
+      })
+      .catch(() => {});
+  }, []);
+
   async function signOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -281,7 +293,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <div className="px-2 pt-3">
+        <div className="space-y-2 px-2 pt-3">
           <button
             onClick={() =>
               window.dispatchEvent(new CustomEvent("acadia:open-palette"))
@@ -313,6 +325,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </>
             )}
           </button>
+          <NotificationsBell collapsed={collapsed} />
         </div>
 
         <nav className="mt-2 flex-1 space-y-0.5 overflow-y-auto px-2 pb-3">
