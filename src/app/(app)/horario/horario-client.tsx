@@ -70,20 +70,42 @@ export function HorarioClient({
 
   return (
     <div>
-      <div className="mb-6 inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setView(t.id)}
-            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
-              view === t.id
-                ? "bg-white/10 text-white"
-                : "text-zinc-400 hover:text-white"
-            }`}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setView(t.id)}
+              className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
+                view === t.id
+                  ? "bg-white/10 text-white"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => {
+            if (typeof window !== "undefined") window.print();
+          }}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+          aria-label="Imprimir horario"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-3.5 w-3.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            {t.label}
-          </button>
-        ))}
+            <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z" />
+          </svg>
+          Imprimir
+        </button>
       </div>
 
       {view === "semanal" && (
