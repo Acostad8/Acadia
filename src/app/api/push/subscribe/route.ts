@@ -35,6 +35,15 @@ export async function POST(request: NextRequest) {
   const { endpoint, keys } = parsed.data;
   const userAgent = request.headers.get("user-agent");
 
+  const { data: existing } = await supabase
+    .from("push_subscriptions")
+    .select("user_id")
+    .eq("endpoint", endpoint)
+    .maybeSingle();
+  if (existing && existing.user_id !== user.id) {
+    return NextResponse.json({ error: "Suscripción no autorizada" }, { status: 403 });
+  }
+
   const { error } = await supabase.from("push_subscriptions").upsert(
     {
       endpoint,

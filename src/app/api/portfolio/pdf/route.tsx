@@ -127,7 +127,7 @@ export async function POST(request: Request) {
       .eq("template", template)
       .eq("one_page", onePage)
       .maybeSingle();
-    if (cached && new Date(cached.expires_at).getTime() > Date.now()) {
+    if (cached && new Date(cached.expires_at).getTime() > new Date().getTime()) {
       const { data: signed, error: signErr } = await service.storage
         .from(BUCKET)
         .createSignedUrl(cached.storage_path, SIGNED_URL_TTL_S);
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const expiresAt = new Date(Date.now() + CACHE_MS).toISOString();
+  const expiresAt = new Date(new Date().getTime() + CACHE_MS).toISOString();
   await service.from("portfolio_exports").upsert(
     {
       user_id: user.id,

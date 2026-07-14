@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     .from("semesters")
     .select("id, drive_folder_id")
     .eq("id", semesterId)
+    .eq("user_id", user.id)
     .maybeSingle();
   if (!semester) {
     return NextResponse.json({ error: "Semestre no existe" }, { status: 404 });
@@ -45,14 +46,27 @@ export async function POST(request: NextRequest) {
   const { data: subjects } = await supabase
     .from("subjects")
     .select("id")
-    .eq("semester_id", semesterId);
+    .eq("semester_id", semesterId)
+    .eq("user_id", user.id);
   const subjectIds = (subjects ?? []).map((s) => s.id);
 
   if (subjectIds.length > 0) {
-    await supabase.from("schedule_blocks").delete().in("subject_id", subjectIds);
-    await supabase.from("subjects").delete().eq("semester_id", semesterId);
+    await supabase
+      .from("schedule_blocks")
+      .delete()
+      .in("subject_id", subjectIds)
+      .eq("user_id", user.id);
+    await supabase
+      .from("subjects")
+      .delete()
+      .eq("semester_id", semesterId)
+      .eq("user_id", user.id);
   }
-  await supabase.from("semesters").delete().eq("id", semesterId);
+  await supabase
+    .from("semesters")
+    .delete()
+    .eq("id", semesterId)
+    .eq("user_id", user.id);
 
   return NextResponse.json({ ok: true });
 }
