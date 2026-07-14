@@ -229,10 +229,105 @@ function NavBar() {
 }
 
 /* ------------------------------------------------------------------ */
+const HERO_ROTATE = [
+  "académico",
+  "de estudio",
+  "de tu carrera",
+  "para tu tesis",
+];
+
+function RotatingHeroWord() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setI((v) => (v + 1) % HERO_ROTATE.length);
+    }, 2600);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <span className="relative inline-grid whitespace-nowrap align-baseline">
+      {HERO_ROTATE.map((w) => (
+        <span
+          key={`spacer-${w}`}
+          aria-hidden
+          className="invisible col-start-1 row-start-1 whitespace-nowrap px-1"
+        >
+          {w}
+        </span>
+      ))}
+      {HERO_ROTATE.map((w, idx) => (
+        <span
+          key={w}
+          className={`text-shimmer col-start-1 row-start-1 flex items-center justify-center whitespace-nowrap px-1 transition-all duration-500 ease-out ${
+            idx === i
+              ? "translate-y-0 opacity-100 blur-0"
+              : "pointer-events-none translate-y-4 opacity-0 blur-[2px]"
+          }`}
+        >
+          {w}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+const LIVE_CMDS = [
+  "buscar apuntes de Cálculo…",
+  "abrir portafolio público",
+  "citar Kant 1781 en APA",
+  "nueva tarea: entregar proyecto",
+  "resumir capítulo 3 con IA",
+];
+
+function LiveCommandBar() {
+  const [phrase, setPhrase] = useState(0);
+  const [typed, setTyped] = useState("");
+  useEffect(() => {
+    const target = LIVE_CMDS[phrase];
+    let i = 0;
+    setTyped("");
+    const typing = setInterval(() => {
+      i++;
+      setTyped(target.slice(0, i));
+      if (i >= target.length) {
+        clearInterval(typing);
+        setTimeout(
+          () => setPhrase((v) => (v + 1) % LIVE_CMDS.length),
+          1800
+        );
+      }
+    }, 42);
+    return () => clearInterval(typing);
+  }, [phrase]);
+
+  return (
+    <div className="animate-fade-in-up anim-delay-400 group relative mt-8 flex w-full max-w-md items-center gap-3 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 shadow-lg shadow-indigo-500/10 backdrop-blur-xl transition hover:border-indigo-400/30">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-indigo-400/10 to-transparent transition-transform duration-[1400ms] group-hover:translate-x-full"
+      />
+      <span className="relative flex h-6 shrink-0 items-center gap-0.5 rounded-md border border-white/10 bg-white/[0.06] px-1.5 font-mono text-[10px] text-zinc-300">
+        ⌘K
+      </span>
+      <span className="relative flex-1 truncate text-left text-sm text-zinc-300">
+        {typed}
+        <span
+          aria-hidden
+          className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-indigo-400"
+        />
+      </span>
+      <span className="relative hidden shrink-0 items-center gap-1 text-[10px] uppercase tracking-widest text-zinc-500 sm:inline-flex">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
+        live
+      </span>
+    </div>
+  );
+}
+
 function Hero({ scrollY }: { scrollY: number }) {
   const py = scrollY * 0.22;
   return (
-    <section className="relative isolate mx-auto flex w-full max-w-6xl flex-col items-center px-6 pb-32 pt-40 text-center sm:pt-48">
+    <section className="relative isolate mx-auto flex w-full max-w-6xl flex-col items-center px-6 pb-12 text-center">
       {/* Orbes de fondo (z -1 dentro del isolate del section) */}
       <div
         aria-hidden
@@ -245,86 +340,97 @@ function Hero({ scrollY }: { scrollY: number }) {
         style={{ transform: `translateY(${py * 0.3}px)` }}
       />
 
-      {/* Badge */}
-      <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-300 backdrop-blur-xl">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-        </span>
-        Tu carrera universitaria, en un solo lugar
-      </div>
+      {/* First-fold wrapper: ocupa exactamente el viewport */}
+      <div className="relative flex min-h-[100dvh] w-full flex-col items-center pt-24 sm:pt-28">
+        {/* Bloque de texto centrado verticalmente */}
+        <div className="flex flex-1 flex-col items-center justify-center">
+        {/* Badge */}
+        <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-300 backdrop-blur-xl">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          Tu carrera universitaria, en un solo lugar
+        </div>
 
-      {/* Título */}
-      <h1 className="animate-fade-in-up anim-delay-100 mt-8 max-w-4xl text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl md:text-7xl">
-        El sistema operativo
-        <br />
-        <span className="text-shimmer">académico</span>
-        <br />
-        que tu carrera merece.
-      </h1>
+        {/* Título */}
+        <h1 className="animate-fade-in-up anim-delay-100 mt-6 max-w-4xl text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl md:text-6xl">
+          El sistema operativo
+          <br />
+          <RotatingHeroWord />
+          <br />
+          que tu carrera merece.
+        </h1>
 
-      {/* Subtítulo */}
-      <p className="animate-fade-in-up anim-delay-200 mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-zinc-400 sm:text-xl">
-        Materias, notas, biblioteca, calendario, portafolio, finanzas.
-        Todo conectado. Todo tuyo. Del primer semestre hasta el grado.
-      </p>
+        {/* Subtítulo */}
+        <p className="animate-fade-in-up anim-delay-200 mx-auto mt-5 max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg">
+          Materias, notas, biblioteca, calendario, portafolio, finanzas.
+          Todo conectado. Todo tuyo. Del primer semestre hasta el grado.
+        </p>
 
-      {/* CTAs */}
-      <div className="animate-fade-in-up anim-delay-300 mt-12 flex flex-col items-center gap-3 sm:flex-row">
-        <Link
-          href="/login"
-          className="group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-7 py-3.5 text-base font-semibold text-white shadow-2xl shadow-indigo-500/40 transition hover:scale-[1.02] hover:shadow-indigo-500/60"
-        >
-          <span className="relative z-10">Comenzar gratis</span>
+        {/* CTAs */}
+        <div className="animate-fade-in-up anim-delay-300 mt-8 flex flex-col items-center gap-3 sm:flex-row">
+          <Link
+            href="/login"
+            className="group relative flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-7 py-3.5 text-base font-semibold text-white shadow-2xl shadow-indigo-500/40 transition hover:scale-[1.02] hover:shadow-indigo-500/60"
+          >
+            <span className="relative z-10">Comenzar gratis</span>
+            <svg
+              viewBox="0 0 24 24"
+              className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-1"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+            >
+              <path
+                d="M5 12h14M13 5l7 7-7 7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span
+              aria-hidden
+              className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-1000 group-hover:translate-x-full"
+            />
+          </Link>
+          <a
+            href="#modulos"
+            className="rounded-xl border border-white/10 bg-white/[0.03] px-6 py-3.5 text-base font-medium text-zinc-300 backdrop-blur-sm transition hover:border-white/25 hover:bg-white/[0.06] hover:text-white"
+          >
+            Ver módulos
+          </a>
+        </div>
+
+          {/* Live command bar — nueva pieza kinética */}
+          <LiveCommandBar />
+        </div>
+
+        {/* Scroll hint al fondo del viewport, separado del bloque */}
+        <div className="flex flex-col items-center gap-1.5 pb-6 pt-8 text-zinc-500 animate-bob">
+          <span className="text-[11px] uppercase tracking-widest">
+            Descubre más
+          </span>
           <svg
             viewBox="0 0 24 24"
-            className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-1"
+            className="h-4 w-4"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.2"
+            strokeWidth="1.8"
           >
             <path
-              d="M5 12h14M13 5l7 7-7 7"
+              d="M12 5v14M5 12l7 7 7-7"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           </svg>
-          <span
-            aria-hidden
-            className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-1000 group-hover:translate-x-full"
-          />
-        </Link>
-        <a
-          href="#modulos"
-          className="rounded-xl border border-white/10 bg-white/[0.03] px-6 py-3.5 text-base font-medium text-zinc-300 backdrop-blur-sm transition hover:border-white/25 hover:bg-white/[0.06] hover:text-white"
-        >
-          Ver módulos
-        </a>
+        </div>
       </div>
 
-      {/* Scroll hint pequeño */}
-      <div className="mt-16 flex flex-col items-center gap-1.5 text-zinc-500 animate-bob">
-        <span className="text-[11px] uppercase tracking-widest">Descubre más</span>
-        <svg
-          viewBox="0 0 24 24"
-          className="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path
-            d="M12 5v14M5 12l7 7 7-7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
-
-      {/* Mockup flotante */}
+      {/* Mockup flotante (debajo del fold) */}
       <Reveal
         variant="scale"
         delay={200}
-        className="mt-20 w-full max-w-5xl sm:mt-28"
+        className="mt-20 w-full max-w-5xl sm:mt-24"
       >
         <div className="tilt-card group relative overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/80 shadow-[0_30px_100px_-20px_rgba(99,102,241,0.4)] backdrop-blur-xl">
           <div
@@ -1072,26 +1178,133 @@ function FinalCTA() {
 
 /* ------------------------------------------------------------------ */
 function Footer() {
+  const year = new Date().getFullYear();
+  const columns: {
+    title: string;
+    links: { label: string; href: string; external?: boolean }[];
+  }[] = [
+    {
+      title: "Producto",
+      links: [
+        { label: "Módulos", href: "#modulos" },
+        { label: "Cómo funciona", href: "#como" },
+        { label: "Manifiesto", href: "#manifesto" },
+        { label: "Entrar", href: "/login" },
+      ],
+    },
+    {
+      title: "Recursos",
+      links: [
+        { label: "Portafolio ejemplo", href: "/p/demo" },
+        { label: "Atajos ⌘K", href: "#como" },
+        { label: "Guía rápida", href: "#modulos" },
+      ],
+    },
+    {
+      title: "Sistema",
+      links: [
+        { label: "Estado · operativo", href: "#" },
+        { label: "Privacidad", href: "#" },
+        { label: "Términos", href: "#" },
+      ],
+    },
+  ];
+
   return (
-    <footer className="border-t border-white/5 bg-zinc-950/60 py-12 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
-        <div className="flex items-center gap-2.5">
-          <LogoMark size={22} />
-          <span className="text-sm font-semibold">Acadia</span>
-          <span className="text-xs text-zinc-600">
-            © {new Date().getFullYear()}
-          </span>
-        </div>
-        <div className="flex items-center gap-6 text-xs text-zinc-500">
-          <Link href="/login" className="transition hover:text-white">
-            Entrar
+    <footer className="relative mt-16 border-t border-white/5 bg-zinc-950/70 backdrop-blur-xl">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-400/60 to-transparent"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 opacity-40"
+        style={{
+          backgroundImage:
+            "radial-gradient(ellipse 60% 60% at 20% 0%, rgba(99,102,241,0.18), transparent 60%), radial-gradient(ellipse 50% 60% at 90% 0%, rgba(139,92,246,0.14), transparent 55%)",
+        }}
+      />
+
+      <div className="relative mx-auto grid w-full max-w-6xl gap-12 px-6 py-16 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="max-w-sm">
+          <Link href="/" className="flex items-center gap-2.5">
+            <LogoMark size={26} />
+            <span className="text-base font-semibold tracking-tight">
+              Acadia
+            </span>
           </Link>
-          <a href="#modulos" className="transition hover:text-white">
-            Módulos
-          </a>
-          <a href="#como" className="transition hover:text-white">
-            Cómo funciona
-          </a>
+          <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+            Sistema operativo académico. Materias, apuntes, referencias y
+            portafolio en un solo lugar — pensado para estudiantes.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-zinc-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              Operativo
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-mono text-zinc-400">
+              v1.0
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-zinc-400">
+              UFPSO
+            </span>
+          </div>
+        </div>
+
+        {columns.map((col) => (
+          <div key={col.title}>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+              {col.title}
+            </h4>
+            <ul className="mt-4 space-y-2.5">
+              {col.links.map((l) => {
+                const isHash = l.href.startsWith("#");
+                const isRoute = l.href.startsWith("/");
+                const cls =
+                  "group inline-flex items-center gap-1 text-sm text-zinc-500 transition hover:text-white";
+                const inner = (
+                  <>
+                    <span className="h-px w-0 bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-300 group-hover:w-3" />
+                    {l.label}
+                  </>
+                );
+                if (isRoute && !isHash) {
+                  return (
+                    <li key={l.label}>
+                      <Link href={l.href} className={cls}>
+                        {inner}
+                      </Link>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={l.label}>
+                    <a href={l.href} className={cls}>
+                      {inner}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <div className="relative border-t border-white/5">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-xs text-zinc-500 sm:flex-row">
+          <p>
+            © {year} Acadia · Hecho por{" "}
+            <span className="text-zinc-300">Juan David Acosta</span>
+          </p>
+          <p className="flex items-center gap-2">
+            <span>Ocaña, Colombia</span>
+            <span aria-hidden className="text-zinc-700">
+              ·
+            </span>
+            <span className="font-mono text-zinc-600">
+              {process.env.NEXT_PUBLIC_APP_ENV ?? "prod"}
+            </span>
+          </p>
         </div>
       </div>
     </footer>
