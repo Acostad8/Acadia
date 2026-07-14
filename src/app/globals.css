@@ -279,6 +279,10 @@ button:not(:disabled) {
 
 /* Shimmer */
 @keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+@keyframes text-shimmer {
   from { background-position: -200% 0; }
   to   { background-position: 200% 0; }
 }
@@ -291,7 +295,7 @@ button:not(:disabled) {
     rgba(255,255,255,0.7) 100%
   );
   background-size: 200% 100%;
-  animation: shimmer 6s linear infinite;
+  animation: text-shimmer 6s linear infinite;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -304,6 +308,40 @@ button:not(:disabled) {
 }
 .animate-bob {
   animation: bob 2.2s ease-in-out infinite;
+}
+
+/* Print — hide chrome, force light-friendly render for horario */
+@media print {
+  body {
+    background: white !important;
+    background-image: none !important;
+    color: black !important;
+  }
+  aside,
+  header nav,
+  .print\:hidden {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .bg-white\/\[0\.02\],
+  .bg-white\/\[0\.03\] {
+    background: white !important;
+  }
+  .border-white\/10 {
+    border-color: #d4d4d8 !important;
+  }
+  .text-white,
+  .text-zinc-300,
+  .text-zinc-400 {
+    color: black !important;
+  }
+  .text-zinc-500,
+  .text-zinc-600 {
+    color: #52525b !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

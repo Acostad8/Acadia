@@ -15,6 +15,9 @@ import { normalizeLayout, studyLast7Days, type StudyDay } from "@/lib/widgets";
 import { WeeklySchedule } from "./weekly-schedule";
 import { NextClassCountdown } from "./live-clock";
 import { DashboardGrid } from "./dashboard-grid";
+import { EmptyState, EmptyIcon } from "@/components/empty-state";
+import { ProgressRing } from "@/components/progress-ring";
+import { Sparkline } from "@/components/sparkline";
 
 const DriveBanner = dynamic(() =>
   import("./drive-banner").then((m) => m.DriveBanner)
@@ -58,7 +61,11 @@ export default async function DashboardPage() {
   const [{ data: blocks }, { data: evaluations }] = subjectIds.length
     ? await Promise.all([
         supabase.from("schedule_blocks").select().in("subject_id", subjectIds),
-        supabase.from("evaluations").select().in("subject_id", subjectIds),
+        supabase
+          .from("evaluations")
+          .select()
+          .in("subject_id", subjectIds)
+          .order("created_at"),
       ])
     : [{ data: [] as ScheduleBlock[] }, { data: [] as Evaluation[] }];
 
@@ -90,6 +97,29 @@ export default async function DashboardPage() {
   const streak = computeStreak(
     (recentSessions ?? []) as { started_at: string }[]
   );
+
+  const weekStart = new Date();
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - 6);
+  const prevWeekStart = new Date(weekStart);
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+  const prevWeekEnd = new Date(weekStart);
+  prevWeekEnd.setMilliseconds(prevWeekEnd.getMilliseconds() - 1);
+  let studyThisWeek = 0;
+  let studyPrevWeek = 0;
+  for (const s of recentSessions ?? []) {
+    const t = new Date(s.started_at).getTime();
+    if (t >= weekStart.getTime()) studyThisWeek += s.duration_minutes ?? 0;
+    else if (
+      t >= prevWeekStart.getTime() &&
+      t <= prevWeekEnd.getTime()
+    )
+      studyPrevWeek += s.duration_minutes ?? 0;
+  }
+  const studyDeltaPct =
+    studyPrevWeek === 0
+      ? null
+      : Math.round(((studyThisWeek - studyPrevWeek) / studyPrevWeek) * 100);
 
   const nowForStudy = new Date();
   const studyMinutesByDay = new Map<string, number>();
@@ -262,6 +292,88 @@ export default async function DashboardPage() {
         </section>
 
         {!semester.drive_folder_id && <DriveBanner semesterId={semester.id} />}
+
+        {(studyThisWeek > 0 || studyPrevWeek > 0) && (
+          <section className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Estudio esta semana
+              </p>
+              <p className="mt-1.5 flex items-baseline gap-2">
+                <span className="text-2xl font-bold tabular-nums text-white">
+                  {studyThisWeek >= 60
+                    ? `${Math.round(studyThisWeek / 6) / 10}h`
+                    : `${studyThisWeek}m`}
+                </span>
+                {studyDeltaPct !== null && (
+                  <span
+                    className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                      studyDeltaPct >= 0
+                        ? "bg-emerald-500/15 text-emerald-300"
+                        : "bg-red-500/15 text-red-300"
+                    }`}
+                  >
+                    {studyDeltaPct >= 0 ? "▲" : "▼"}
+                    {Math.abs(studyDeltaPct)}%
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-500">
+                Semana previa:{" "}
+                {studyPrevWeek >= 60
+                  ? `${Math.round(studyPrevWeek / 6) / 10}h`
+                  : `${studyPrevWeek}m`}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Racha actual
+              </p>
+              <p className="mt-1.5 flex items-baseline gap-2">
+                <span className="text-2xl font-bold tabular-nums text-white">
+                  {streak.current}
+                </span>
+                <span className="text-xs text-zinc-500">
+                  día{streak.current === 1 ? "" : "s"}
+                </span>
+                {streak.hasToday && (
+                  <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
+                    ✓ hoy
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-500">
+                {streak.longest > streak.current
+                  ? `Récord personal: ${streak.longest} días`
+                  : streak.current > 0 && streak.current === streak.longest
+                    ? "¡Estás en tu récord personal!"
+                    : "Estudia hoy para iniciarla"}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Días activos
+              </p>
+              <p className="mt-1.5 flex items-baseline gap-2">
+                <span className="text-2xl font-bold tabular-nums text-white">
+                  {studyByDay.filter((d) => d.minutes > 0).length}
+                </span>
+                <span className="text-xs text-zinc-500">de 7</span>
+              </p>
+              <div className="mt-2 flex gap-1">
+                {studyByDay.map((d, i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 flex-1 rounded-full ${
+                      d.minutes > 0 ? "bg-emerald-400/70" : "bg-white/10"
+                    }`}
+                    title={`${d.date} · ${d.minutes} min`}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {ongoing && ongoingSubject && (
           <section className="mt-6">
@@ -530,10 +642,28 @@ export default async function DashboardPage() {
               Ver analítica →
             </Link>
           </div>
+          {(subjects ?? []).length === 0 ? (
+            <EmptyState
+              title="Aún no tienes materias"
+              description="Agrega tu primera materia para ver notas, evaluaciones y horario."
+              icon={<EmptyIcon path="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z M15 3v5h5" />}
+              action={{ label: "Agregar materia", href: "/semestres" }}
+            />
+          ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {(subjects ?? []).map((s) => {
               const summary = summaryBySubject.get(s.id);
               const hasGrades = (summary?.evaluatedPercent ?? 0) > 0;
+              const color = s.color ?? "#6366f1";
+              const gradeSeries = ((evaluations ?? []) as Evaluation[])
+                .filter((e) => e.subject_id === s.id && e.grade !== null)
+                .map((e) => Number(e.grade));
+              const ringColor =
+                summary?.currentAverage === null || summary?.currentAverage === undefined
+                  ? color
+                  : summary.currentAverage >= 3
+                    ? color
+                    : "#ef4444";
               return (
                 <Link
                   key={s.id}
@@ -542,55 +672,82 @@ export default async function DashboardPage() {
                 >
                   <span
                     className="absolute inset-x-0 top-0 h-1"
-                    style={{ backgroundColor: s.color ?? "#6366f1" }}
+                    style={{ backgroundColor: color }}
                   />
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-semibold leading-snug text-white">
-                      {s.name}
-                    </h3>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold leading-snug text-white">
+                        {s.name}
+                      </h3>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {s.code}
+                        {s.group_name ? ` · Grupo ${s.group_name}` : ""}
+                        {s.credits ? ` · ${s.credits} créditos` : ""}
+                      </p>
+                    </div>
                     {hasGrades && summary && (
+                      <ProgressRing
+                        value={summary.currentAverage}
+                        color={ringColor}
+                        size={56}
+                        stroke={4}
+                      />
+                    )}
+                    {!hasGrades && summary && (
                       <span
-                        className={`shrink-0 rounded-lg px-2 py-1 text-sm font-bold tabular-nums ${
-                          summary.status === "perdida"
-                            ? "bg-red-500/10 text-red-400"
-                            : summary.status === "aprobada"
-                              ? "bg-emerald-500/10 text-emerald-400"
-                              : "bg-white/10 text-white"
-                        }`}
-                        title={`Nota acumulada · ${summary.evaluatedPercent}% evaluado`}
+                        className="shrink-0 rounded-lg bg-white/5 px-2 py-1 text-[10px] font-medium text-zinc-500"
+                        title="Aún sin notas registradas"
                       >
-                        {formatGrade(summary.accumulated)}
+                        Sin notas
                       </span>
                     )}
                   </div>
-                  <p className="mt-1.5 text-xs text-zinc-500">
-                    {s.code}
-                    {s.group_name ? ` · Grupo ${s.group_name}` : ""}
-                    {s.credits ? ` · ${s.credits} créditos` : ""}
-                  </p>
                   {s.professor && (
                     <p className="mt-3 flex items-center gap-2 text-sm text-zinc-400">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-[10px] font-semibold text-zinc-300">
                         {s.professor.charAt(0).toUpperCase()}
                       </span>
-                      {s.professor}
+                      <span className="truncate">{s.professor}</span>
                     </p>
                   )}
                   {hasGrades && summary && (
-                    <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/5">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${summary.evaluatedPercent}%`,
-                          backgroundColor: s.color ?? "#6366f1",
-                        }}
-                      />
-                    </div>
+                    <>
+                      <div className="mt-3 flex items-center gap-2">
+                        <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/5">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${summary.evaluatedPercent}%`,
+                              backgroundColor: color,
+                            }}
+                          />
+                        </div>
+                        <span className="text-[10px] tabular-nums text-zinc-500">
+                          {summary.evaluatedPercent}%
+                        </span>
+                      </div>
+                      {gradeSeries.length >= 2 && (
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <span className="text-[10px] uppercase tracking-widest text-zinc-600">
+                            Tendencia
+                          </span>
+                          <Sparkline
+                            values={gradeSeries}
+                            width={96}
+                            height={20}
+                            color={color}
+                            min={0}
+                            max={5}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
                 </Link>
               );
             })}
           </div>
+          )}
         </section>
       </main>
   );

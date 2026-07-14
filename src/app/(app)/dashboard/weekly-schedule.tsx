@@ -14,6 +14,30 @@ function toMinutes(t: string): number {
   return h * 60 + m;
 }
 
+function findConflicts(blocks: ScheduleBlock[]): Set<string> {
+  const conflicting = new Set<string>();
+  const byDay = new Map<number, ScheduleBlock[]>();
+  for (const b of blocks) {
+    const list = byDay.get(b.day_of_week) ?? [];
+    list.push(b);
+    byDay.set(b.day_of_week, list);
+  }
+  for (const list of byDay.values()) {
+    const sorted = [...list].sort(
+      (a, b) => toMinutes(a.start_time) - toMinutes(b.start_time)
+    );
+    for (let i = 0; i < sorted.length; i++) {
+      for (let j = i + 1; j < sorted.length; j++) {
+        if (toMinutes(sorted[j].start_time) >= toMinutes(sorted[i].end_time))
+          break;
+        conflicting.add(sorted[i].id);
+        conflicting.add(sorted[j].id);
+      }
+    }
+  }
+  return conflicting;
+}
+
 export function WeeklySchedule({
   subjects,
   blocks,
@@ -30,6 +54,7 @@ export function WeeklySchedule({
   }
 
   const subjectById = new Map(subjects.map((s) => [s.id, s]));
+  const conflicts = findConflicts(blocks);
   const startHour = Math.min(
     ...blocks.map((b) => Math.floor(toMinutes(b.start_time) / 60))
   );
@@ -88,22 +113,34 @@ export function WeeklySchedule({
                 const height =
                   ((toMinutes(b.end_time) - toMinutes(b.start_time)) / 60) *
                   ROW_PX;
+                const isConflict = conflicts.has(b.id);
                 return (
                   <div
                     key={b.id}
-                    className="absolute inset-x-1.5 overflow-hidden rounded-lg border px-2.5 py-1.5 backdrop-blur-sm"
+                    className={`absolute inset-x-1.5 overflow-hidden rounded-lg border px-2.5 py-1.5 backdrop-blur-sm ${
+                      isConflict ? "ring-2 ring-red-500/60" : ""
+                    }`}
                     style={{
                       top: top + 2,
                       height: height - 4,
                       backgroundColor: `${color}26`,
-                      borderColor: `${color}59`,
+                      borderColor: isConflict ? "#ef4444" : `${color}59`,
                     }}
-                    title={b.room_description ?? undefined}
+                    title={
+                      isConflict
+                        ? `⚠ Conflicto: se cruza con otro bloque. ${b.room_description ?? ""}`
+                        : (b.room_description ?? undefined)
+                    }
                   >
                     <span
                       className="absolute inset-y-0 left-0 w-[3px]"
-                      style={{ backgroundColor: color }}
+                      style={{ backgroundColor: isConflict ? "#ef4444" : color }}
                     />
+                    {isConflict && (
+                      <span className="absolute right-1 top-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                        !
+                      </span>
+                    )}
                     <p className="truncate pl-1 text-[11px] font-semibold leading-tight text-white">
                       {subject?.name ?? "?"}
                     </p>
